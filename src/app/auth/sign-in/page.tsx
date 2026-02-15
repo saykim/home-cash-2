@@ -17,16 +17,23 @@ export default function SignInPage() {
     setErrorMessage(null);
     setSubmitting(true);
 
-    const { error } = await authClient.signIn.email({ email, password });
+    try {
+      const { error } = await authClient.signIn.email({ email, password });
 
-    if (error) {
-      setErrorMessage(error.message || '로그인에 실패했습니다.');
+      if (error) {
+        setErrorMessage(error.message || '로그인에 실패했습니다.');
+        return;
+      }
+
+      router.replace('/');
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : '로그인 요청 중 오류가 발생했습니다.',
+      );
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    router.replace('/');
-    router.refresh();
   };
 
   return (
@@ -43,6 +50,7 @@ export default function SignInPage() {
             value={email}
             onChange={event => setEmail(event.target.value)}
             placeholder="이메일"
+            autoComplete="email"
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           <input
@@ -51,6 +59,7 @@ export default function SignInPage() {
             value={password}
             onChange={event => setPassword(event.target.value)}
             placeholder="비밀번호"
+            autoComplete="current-password"
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           {errorMessage && (

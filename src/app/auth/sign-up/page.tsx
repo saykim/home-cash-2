@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth/client';
 
 export default function SignUpPage() {
+  const MIN_PASSWORD_LENGTH = 8;
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -18,20 +19,33 @@ export default function SignUpPage() {
     setErrorMessage(null);
     setSubmitting(true);
 
-    const { error } = await authClient.signUp.email({
-      email,
-      password,
-      name: name.trim() || email.split('@')[0],
-    });
-
-    if (error) {
-      setErrorMessage(error.message || '회원가입에 실패했습니다.');
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setErrorMessage(`비밀번호는 최소 ${MIN_PASSWORD_LENGTH}자 이상이어야 합니다.`);
       setSubmitting(false);
       return;
     }
 
-    router.replace('/');
-    router.refresh();
+    try {
+      const { error } = await authClient.signUp.email({
+        email,
+        password,
+        name: name.trim() || email.split('@')[0],
+      });
+
+      if (error) {
+        setErrorMessage(error.message || '회원가입에 실패했습니다.');
+        return;
+      }
+
+      router.replace('/');
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : '회원가입 요청 중 오류가 발생했습니다.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -47,6 +61,7 @@ export default function SignUpPage() {
             value={name}
             onChange={event => setName(event.target.value)}
             placeholder="이름 (선택)"
+            autoComplete="name"
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           <input
@@ -55,14 +70,17 @@ export default function SignUpPage() {
             value={email}
             onChange={event => setEmail(event.target.value)}
             placeholder="이메일"
+            autoComplete="email"
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           <input
             type="password"
             required
+            minLength={MIN_PASSWORD_LENGTH}
             value={password}
             onChange={event => setPassword(event.target.value)}
             placeholder="비밀번호"
+            autoComplete="new-password"
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           {errorMessage && (
