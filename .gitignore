@@ -38,3 +38,7 @@ next-env.d.ts
 *.db
 *.sqlite
 data/
+
+# local references/drafts
+ref/
+.sisyphus/drafts/
