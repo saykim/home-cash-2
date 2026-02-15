@@ -57,6 +57,8 @@ export default function SignUpPage() {
         </div>
         <form className="space-y-3" onSubmit={handleSubmit}>
           <input
+            id="sign-up-name"
+            name="name"
             type="text"
             value={name}
             onChange={event => setName(event.target.value)}
@@ -65,6 +67,8 @@ export default function SignUpPage() {
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           <input
+            id="sign-up-email"
+            name="email"
             type="email"
             required
             value={email}
@@ -74,6 +78,8 @@ export default function SignUpPage() {
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           <input
+            id="sign-up-password"
+            name="password"
             type="password"
             required
             minLength={MIN_PASSWORD_LENGTH}

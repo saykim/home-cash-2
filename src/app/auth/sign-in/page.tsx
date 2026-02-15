@@ -45,6 +45,8 @@ export default function SignInPage() {
         </div>
         <form className="space-y-3" onSubmit={handleSubmit}>
           <input
+            id="sign-in-email"
+            name="email"
             type="email"
             required
             value={email}
@@ -54,6 +56,8 @@ export default function SignInPage() {
             className="w-full rounded-lg border px-3 py-2 bg-[var(--surface-strong)] text-primary"
           />
           <input
+            id="sign-in-password"
+            name="password"
             type="password"
             required
             value={password}

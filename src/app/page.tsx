@@ -178,9 +178,25 @@ export default function HomePage() {
   };
 
   const handleSignOut = async () => {
-    await authClient.signOut();
-    router.replace('/auth/sign-in');
-    router.refresh();
+    try {
+      const { error } = await authClient.signOut();
+      if (error) {
+        throw new Error(error.message || '로그아웃에 실패했습니다.');
+      }
+    } catch {
+      try {
+        await fetch('/api/auth/sign-out', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+          credentials: 'include',
+        });
+      } catch {
+        // Ignore fallback errors and force redirect below.
+      }
+    } finally {
+      window.location.assign('/auth/sign-in');
+    }
   };
 
   const handleCreateTransaction = async (dto: CreateTransactionDTO) => {
