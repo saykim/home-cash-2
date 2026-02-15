@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { toBenefitTier } from "@/lib/mappers";
+import { requireAuth } from "@/lib/auth/require-auth";
 import type { CashflowSummary, CardPerformance, BenefitTierRow } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const { searchParams } = new URL(request.url);
   const now = new Date();
   const month =

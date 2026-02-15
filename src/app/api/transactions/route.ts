@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { requireAuth } from "@/lib/auth/require-auth";
 import { toTransaction } from "@/lib/mappers";
 import type { TransactionRow } from "@/types";
 import { v4 as uuid } from "uuid";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const { searchParams } = new URL(request.url);
   const month = searchParams.get("month");
   const limit = parseInt(searchParams.get("limit") ?? "50", 10);
@@ -73,6 +81,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const body = await request.json();
   const {
     paymentMethodId,

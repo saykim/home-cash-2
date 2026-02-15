@@ -9,6 +9,7 @@ import MonthlyCumulativeTrends from '@/components/MonthlyCumulativeTrends';
 import TransactionTable, { type TransactionFilters } from '@/components/TransactionTable';
 import TransactionForm from '@/components/TransactionForm';
 import SettingsView from '@/components/SettingsView';
+import { authClient } from '@/lib/auth/client';
 import type {
   CashflowSummary as CashflowData,
   CardPerformance,
@@ -39,6 +40,7 @@ const defaultTransactionFilters: TransactionFilters = {
 export default function HomePage() {
   const router = useRouter();
   const pathname = usePathname();
+  const session = authClient.useSession();
   const [activeTab, setActiveTabState] = useState<'dashboard' | 'settings'>('dashboard');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -175,6 +177,12 @@ export default function HomePage() {
     localStorage.setItem('theme', next);
   };
 
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    router.replace('/auth/sign-in');
+    router.refresh();
+  };
+
   const handleCreateTransaction = async (dto: CreateTransactionDTO) => {
     await fetch('/api/transactions', {
       method: 'POST',
@@ -288,6 +296,20 @@ export default function HomePage() {
               title="라이트/다크 모드 전환"
             >
               {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push('/account')}
+              className="surface-card rounded-xl px-3 py-2 text-sm text-secondary hover:text-primary"
+            >
+              {session.data?.user?.email ?? '계정'}
+            </button>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="surface-card rounded-xl px-3 py-2 text-sm text-secondary hover:text-primary"
+            >
+              로그아웃
             </button>
           </div>
         </header>

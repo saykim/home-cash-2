@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { toPaymentMethod, toBenefitTier } from "@/lib/mappers";
+import { requireAuth } from "@/lib/auth/require-auth";
 import type { PaymentMethodRow, BenefitTierRow } from "@/types";
 import { v4 as uuid } from "uuid";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const pool = await getDb();
   const client = await pool.connect();
 
@@ -33,6 +41,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const body = await request.json();
   const { name, type, billingDay, performanceStartDay } = body;
 

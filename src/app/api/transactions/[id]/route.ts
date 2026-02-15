@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth/require-auth";
 import { getDb } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const pool = await getDb();
   const client = await pool.connect();
 

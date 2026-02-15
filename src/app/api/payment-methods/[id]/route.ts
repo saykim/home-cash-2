@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { requireAuth } from '@/lib/auth/require-auth';
 import { toPaymentMethod } from '@/lib/mappers';
 import type { PaymentMethodRow } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const body = await request.json();
   const pool = await getDb();
   const client = await pool.connect();
@@ -40,6 +48,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  const unauthorized = await requireAuth();
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const pool = await getDb();
   const client = await pool.connect();
 
