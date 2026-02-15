@@ -1,19 +1,25 @@
 import { createNeonAuth } from '@neondatabase/neon-js/auth/next/server';
 
-const baseUrl = process.env.NEON_AUTH_BASE_URL ?? process.env.VITE_NEON_AUTH_URL;
-const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
+export function getAuthConfig() {
+  const baseUrl = process.env.NEON_AUTH_BASE_URL ?? process.env.VITE_NEON_AUTH_URL;
+  const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
 
-if (!baseUrl) {
-  throw new Error('NEON_AUTH_BASE_URL (or VITE_NEON_AUTH_URL) is not set');
+  if (!baseUrl || !cookieSecret) {
+    return null;
+  }
+
+  return {
+    baseUrl,
+    cookies: {
+      secret: cookieSecret,
+    },
+  };
 }
 
-if (!cookieSecret) {
-  throw new Error('NEON_AUTH_COOKIE_SECRET is not set');
+export function getAuth() {
+  const config = getAuthConfig();
+  if (!config) {
+    return null;
+  }
+  return createNeonAuth(config);
 }
-
-export const auth = createNeonAuth({
-  baseUrl,
-  cookies: {
-    secret: cookieSecret,
-  },
-});
