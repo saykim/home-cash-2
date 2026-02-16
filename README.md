@@ -34,7 +34,7 @@
 ## 3. 기술 스택 (Tech Stack)
 
 - **Framework**: Next.js 14 (App Router)
-- **Database**: SQLite (`better-sqlite3`) - 로컬 파일 기반 (`data/ledger.db`)
+- **Database**: Neon Postgres (`@neondatabase/serverless`) - `DATABASE_URL` 기반
 - **Styling**: Tailwind CSS, Lucide React
 
 ## 4. 시작하기 (Quick Start)
@@ -45,8 +45,14 @@
 # 1. 의존성 설치
 pnpm install
 
-# 2. 개발 서버 실행
-# 앱 실행 시 data/ledger.db가 자동으로 생성 및 초기화됩니다.
+# 2. 환경변수 설정 (.env)
+# 실제 비밀값 대신 아래처럼 플레이스홀더 형식으로 설정하세요.
+DATABASE_URL=postgresql://<user>:<password>@<host>/<db>?sslmode=require
+NEON_AUTH_BASE_URL=https://<project>.neonauth.<region>.aws.neon.tech/<db>/auth
+NEON_AUTH_COOKIE_SECRET=<random-secret>
+
+# 3. 개발 서버 실행
+# 앱은 DATABASE_URL(Neon Postgres)로 연결되며, 첫 API 호출 시 스키마가 초기화됩니다.
 pnpm dev
 ```
 # home-cash-2

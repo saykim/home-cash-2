@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, type KeyboardEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import CashflowSummary from '@/components/CashflowSummary';
 import CardPerformanceGauge from '@/components/CardPerformanceGauge';
 import MonthlyCumulativeTrends from '@/components/MonthlyCumulativeTrends';
 import TransactionTable, { type TransactionFilters } from '@/components/TransactionTable';
-import TransactionForm from '@/components/TransactionForm';
 import SettingsView from '@/components/SettingsView';
 import { authClient } from '@/lib/auth/client';
 import type {
@@ -30,6 +29,29 @@ interface DashboardData {
   cardPerformances: CardPerformance[];
 }
 
+type DashboardSectionId = 'card-performance' | 'monthly-trends' | 'recent-transactions';
+
+const DEFAULT_DASHBOARD_SECTION_ORDER: DashboardSectionId[] = [
+  'card-performance',
+  'monthly-trends',
+  'recent-transactions',
+];
+
+const isDashboardSectionId = (value: string): value is DashboardSectionId =>
+  value === 'card-performance' || value === 'monthly-trends' || value === 'recent-transactions';
+
+const normalizeSectionOrder = (input: unknown): DashboardSectionId[] => {
+  if (!Array.isArray(input)) {
+    return [...DEFAULT_DASHBOARD_SECTION_ORDER];
+  }
+
+  const deduped = Array.from(
+    new Set(input.filter((value): value is DashboardSectionId => typeof value === 'string' && isDashboardSectionId(value))),
+  );
+  const missing = DEFAULT_DASHBOARD_SECTION_ORDER.filter(value => !deduped.includes(value));
+  return [...deduped, ...missing];
+};
+
 const defaultTransactionFilters: TransactionFilters = {
   search: '',
   category: 'all',
@@ -49,6 +71,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionFilters, setTransactionFilters] = useState<TransactionFilters>(defaultTransactionFilters);
+  const [sectionOrder, setSectionOrder] = useState<DashboardSectionId[]>(DEFAULT_DASHBOARD_SECTION_ORDER);
+  const [draggingSection, setDraggingSection] = useState<DashboardSectionId | null>(null);
   const isInitialTransactionsLoadRef = useRef(true);
   const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
@@ -123,6 +147,26 @@ export default function HomePage() {
     [currentMonth],
   );
 
+  const persistSectionOrder = useCallback(async (nextOrder: DashboardSectionId[]) => {
+    try {
+      await fetch('/api/user-dashboard-layout', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionOrder: nextOrder }),
+      });
+    } catch {
+      // keep local reorder state even if save fails
+    }
+  }, []);
+
+  const fetchSectionOrder = useCallback(async () => {
+    const layoutRes = await fetch('/api/user-dashboard-layout');
+    const layout = await parseApiJson<{ sectionOrder: DashboardSectionId[] }>(layoutRes);
+    if (layout?.sectionOrder) {
+      setSectionOrder(normalizeSectionOrder(layout.sectionOrder));
+    }
+  }, [parseApiJson]);
+
   useEffect(() => {
     const init = async () => {
       const initialLoad = isInitialTransactionsLoadRef.current;
@@ -130,6 +174,7 @@ export default function HomePage() {
       await Promise.all([
         fetchDashboardData(),
         fetchPaymentMethods(),
+        fetchSectionOrder(),
         fetchTransactions(defaultTransactionFilters, { showLoading: initialLoad }),
       ]);
       isInitialTransactionsLoadRef.current = false;
@@ -249,6 +294,52 @@ export default function HomePage() {
     ),
   );
 
+  const handleSectionDrop = (targetSection: DashboardSectionId) => {
+    if (!draggingSection || draggingSection === targetSection) {
+      return;
+    }
+
+    setSectionOrder(prev => {
+      const from = prev.indexOf(draggingSection);
+      const to = prev.indexOf(targetSection);
+      if (from === -1 || to === -1) {
+        return prev;
+      }
+
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      void persistSectionOrder(next);
+      return next;
+    });
+  };
+
+  const dashboardSectionMap: Record<DashboardSectionId, { title: string; node: ReactNode }> = {
+    'card-performance': {
+      title: '결제 수단 실적/사용 현황',
+      node: <CardPerformanceGauge cards={dashboardData?.cardPerformances ?? []} />,
+    },
+    'monthly-trends': {
+      title: '월별 누적 변화 추이',
+      node: <MonthlyCumulativeTrends transactions={transactions} month={currentMonth} />,
+    },
+    'recent-transactions': {
+      title: '최근 내역 요약',
+      node: (
+        <TransactionTable
+          transactions={transactions}
+          paymentMethods={paymentMethods}
+          filters={transactionFilters}
+          categories={categories}
+          isLoading={transactionsLoading}
+          onChangeFilters={handleTransactionFiltersChange}
+          onDelete={handleDeleteTransaction}
+          onCreateTransaction={handleCreateTransaction}
+        />
+      ),
+    },
+  };
+
   return (
     <div className="min-h-screen font-sans text-primary">
       <a
@@ -345,28 +436,34 @@ export default function HomePage() {
             >
               {dashboardData && (
                 <>
-                  <div className="relative">
-                    <CashflowSummary summary={dashboardData.cashflow} />
-                    <div className="absolute top-6 right-6">
-                      <TransactionForm
-                        paymentMethods={paymentMethods}
-                        onSubmit={handleCreateTransaction}
-                      />
-                    </div>
-                  </div>
-                  <CardPerformanceGauge cards={dashboardData.cardPerformances} />
-                  <MonthlyCumulativeTrends transactions={transactions} month={currentMonth} />
+                  <CashflowSummary summary={dashboardData.cashflow} />
                 </>
               )}
-              <TransactionTable
-                transactions={transactions}
-                paymentMethods={paymentMethods}
-                filters={transactionFilters}
-                categories={categories}
-                isLoading={transactionsLoading}
-                onChangeFilters={handleTransactionFiltersChange}
-                onDelete={handleDeleteTransaction}
-              />
+              {sectionOrder.map(sectionId => {
+                const section = dashboardSectionMap[sectionId];
+                return (
+                  <section
+                    key={sectionId}
+                    draggable
+                    onDragStart={() => setDraggingSection(sectionId)}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      handleSectionDrop(sectionId);
+                      setDraggingSection(null);
+                    }}
+                    onDragEnd={() => setDraggingSection(null)}
+                    className={`surface-card rounded-2xl p-4 space-y-4 ${draggingSection === sectionId ? 'ring-2 ring-[color:var(--accent)]' : ''}`}
+                  >
+                    <div className="mb-2 text-xs text-muted">
+                      <span>{section.title}</span>
+                    </div>
+                    <div>{section.node}</div>
+                  </section>
+                );
+              })}
             </section>
           ) : (
             <section

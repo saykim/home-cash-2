@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { PaymentMethod, CreateTransactionDTO } from '@/types';
 
@@ -10,10 +10,31 @@ interface Props {
 }
 
 const CATEGORIES = ['생활', '고정', '외식', '교통', '통신', '쇼핑', '의료', '교육', '급여', '수입', '기타'];
+const sanitizeAmountInput = (value: string) => value.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '');
+const formatAmountDisplay = (value: string) => value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const getCaretFromDigitIndex = (formattedValue: string, digitIndex: number) => {
+  if (digitIndex <= 0) {
+    return 0;
+  }
+
+  let passedDigits = 0;
+  for (let i = 0; i < formattedValue.length; i += 1) {
+    if (/\d/.test(formattedValue[i])) {
+      passedDigits += 1;
+      if (passedDigits >= digitIndex) {
+        return i + 1;
+      }
+    }
+  }
+
+  return formattedValue.length;
+};
 
 export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const pendingCaretDigitIndexRef = useRef<number | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
@@ -61,6 +82,32 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
     resetForm();
     setOpen(false);
   };
+
+  const handleAmountChange = (value: string, selectionStart: number | null) => {
+    const sanitized = sanitizeAmountInput(value);
+    setForm(f => ({ ...f, amount: sanitized }));
+
+    if (selectionStart === null) {
+      pendingCaretDigitIndexRef.current = null;
+      return;
+    }
+
+    const digitsBeforeCaret = sanitizeAmountInput(value.slice(0, selectionStart)).length;
+    pendingCaretDigitIndexRef.current = Math.min(digitsBeforeCaret, sanitized.length);
+  };
+
+  useLayoutEffect(() => {
+    const input = amountInputRef.current;
+    const targetDigitIndex = pendingCaretDigitIndexRef.current;
+
+    if (!input || targetDigitIndex === null) {
+      return;
+    }
+
+    const nextCaret = getCaretFromDigitIndex(formatAmountDisplay(form.amount), targetDigitIndex);
+    input.setSelectionRange(nextCaret, nextCaret);
+    pendingCaretDigitIndexRef.current = null;
+  }, [form.amount]);
 
       if (!open) {
     return (
@@ -137,13 +184,14 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
               금액
             </label>
             <input
-              type="number"
+              type="text"
               id="transaction-amount"
+              ref={amountInputRef}
               name="amount"
               autoComplete="off"
               inputMode="numeric"
-              value={form.amount}
-              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+              value={formatAmountDisplay(form.amount)}
+              onChange={e => handleAmountChange(e.target.value, e.target.selectionStart)}
               placeholder="0…"
               className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />

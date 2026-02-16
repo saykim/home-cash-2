@@ -1,7 +1,9 @@
 'use client';
 
 import { Trash2 } from 'lucide-react';
+import TransactionForm from '@/components/TransactionForm';
 import type { Transaction, PaymentMethod } from '@/types';
+import type { CreateTransactionDTO } from '@/types';
 import type { KeyboardEvent } from 'react';
 
 export interface TransactionFilters {
@@ -19,6 +21,7 @@ interface Props {
   onChangeFilters: (filters: TransactionFilters) => void;
   isLoading?: boolean;
   onDelete?: (id: string) => void;
+  onCreateTransaction?: (dto: CreateTransactionDTO) => Promise<void>;
 }
 
 export default function TransactionTable({
@@ -29,6 +32,7 @@ export default function TransactionTable({
   onChangeFilters,
   isLoading = false,
   onDelete,
+  onCreateTransaction,
 }: Props) {
   const setFilter = <K extends keyof TransactionFilters>(key: K, value: TransactionFilters[K]) => {
     onChangeFilters({ ...filters, [key]: value });
@@ -123,48 +127,56 @@ export default function TransactionTable({
         </select>
       </div>
 
-      <div
-        id={performanceId}
-        className="mb-4 flex items-center gap-2 text-xs"
-        role="radiogroup"
-        aria-label="실적 반영 여부 필터"
-      >
-        <button
-          type="button"
-          role="radio"
-          aria-checked={filters.performance === 'all'}
-          tabIndex={filters.performance === 'all' ? 0 : -1}
-          onClick={() => setFilter('performance', 'all')}
-          onKeyDown={e => movePerformanceFocus('all', e)}
-          className={`px-2.5 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 ${filters.performance === 'all' ? 'accent-chip' : 'surface-soft text-secondary'}`}
-          aria-label="실적 전체"
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          id={performanceId}
+          className="flex items-center gap-2 text-xs"
+          role="radiogroup"
+          aria-label="실적 반영 여부 필터"
         >
-          실적 전체
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={filters.performance === 'included'}
-          tabIndex={filters.performance === 'included' ? 0 : -1}
-          onClick={() => setFilter('performance', 'included')}
-          onKeyDown={e => movePerformanceFocus('included', e)}
-          className={`px-2.5 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 ${filters.performance === 'included' ? 'accent-chip' : 'surface-soft text-secondary'}`}
-          aria-label="실적 포함만"
-        >
-          실적 포함만
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={filters.performance === 'excluded'}
-          tabIndex={filters.performance === 'excluded' ? 0 : -1}
-          onClick={() => setFilter('performance', 'excluded')}
-          onKeyDown={e => movePerformanceFocus('excluded', e)}
-          className={`px-2.5 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 ${filters.performance === 'excluded' ? 'danger-chip' : 'surface-soft text-secondary'}`}
-          aria-label="실적 제외만"
-        >
-          실적 제외만
-        </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filters.performance === 'all'}
+            tabIndex={filters.performance === 'all' ? 0 : -1}
+            onClick={() => setFilter('performance', 'all')}
+            onKeyDown={e => movePerformanceFocus('all', e)}
+            className={`px-2.5 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 ${filters.performance === 'all' ? 'accent-chip' : 'surface-soft text-secondary'}`}
+            aria-label="실적 전체"
+          >
+            실적 전체
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filters.performance === 'included'}
+            tabIndex={filters.performance === 'included' ? 0 : -1}
+            onClick={() => setFilter('performance', 'included')}
+            onKeyDown={e => movePerformanceFocus('included', e)}
+            className={`px-2.5 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 ${filters.performance === 'included' ? 'accent-chip' : 'surface-soft text-secondary'}`}
+            aria-label="실적 포함만"
+          >
+            실적 포함만
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={filters.performance === 'excluded'}
+            tabIndex={filters.performance === 'excluded' ? 0 : -1}
+            onClick={() => setFilter('performance', 'excluded')}
+            onKeyDown={e => movePerformanceFocus('excluded', e)}
+            className={`px-2.5 py-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2 ${filters.performance === 'excluded' ? 'danger-chip' : 'surface-soft text-secondary'}`}
+            aria-label="실적 제외만"
+          >
+            실적 제외만
+          </button>
+        </div>
+        {onCreateTransaction ? (
+          <TransactionForm
+            paymentMethods={paymentMethods}
+            onSubmit={onCreateTransaction}
+          />
+        ) : null}
       </div>
 
       <div className="mb-4 flex items-start sm:items-center justify-between gap-2 rounded-lg surface-soft px-3 py-2 text-xs text-muted">

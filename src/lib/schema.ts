@@ -20,6 +20,12 @@ export async function initSchema(client: PoolClient): Promise<void> {
       sort_order INTEGER DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS user_dashboard_layouts (
+      user_id TEXT PRIMARY KEY,
+      section_order TEXT[] NOT NULL,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY,
       payment_method_id TEXT REFERENCES payment_methods(id),
