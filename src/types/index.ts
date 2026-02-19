@@ -79,12 +79,24 @@ export interface CashflowSummary {
   balance: number;
 }
 
+export interface CardUsageTransaction {
+  id: string;
+  transactionDate: string;
+  amount: number;
+  category: string | null;
+  memo: string | null;
+}
+
 export interface CardPerformance {
   paymentMethodId: string;
   cardName: string;
   paymentMethodType: PaymentMethodType;
   billingDay: number | null;
+  performanceStartDay: number;
+  performancePeriodStart: string;
+  performancePeriodEnd: string;
   currentPerformance: number;
+  usageTransactions: CardUsageTransaction[];
   tiers: (BenefitTier & { achieved: boolean })[];
   nextTierRemaining: number | null;
 }

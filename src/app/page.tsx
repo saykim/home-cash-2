@@ -76,22 +76,25 @@ export default function HomePage() {
   const isInitialTransactionsLoadRef = useRef(true);
   const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
 
-  const parseApiJson = async <T,>(response: Response): Promise<T | null> => {
-    if (!response.ok) {
-      return null;
-    }
+  const parseApiJson = useCallback(
+    async function parseApiJson<T>(response: Response): Promise<T | null> {
+      if (!response.ok) {
+        return null;
+      }
 
-    const text = await response.text();
-    if (!text) {
-      return null;
-    }
+      const text = await response.text();
+      if (!text) {
+        return null;
+      }
 
-    try {
-      return (JSON.parse(text) as T) ?? null;
-    } catch {
-      return null;
-    }
-  };
+      try {
+        return (JSON.parse(text) as T) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
 
   const fetchDashboardData = useCallback(async () => {
     const dashRes = await fetch(`/api/dashboard?month=${currentMonth}`);
@@ -100,7 +103,7 @@ export default function HomePage() {
       return;
     }
     setDashboardData(dash);
-  }, [currentMonth]);
+  }, [currentMonth, parseApiJson]);
 
   const fetchPaymentMethods = useCallback(async () => {
     const pmRes = await fetch('/api/payment-methods');
@@ -109,7 +112,7 @@ export default function HomePage() {
       return;
     }
     setPaymentMethods(pms);
-  }, []);
+  }, [parseApiJson]);
 
   const fetchTransactions = useCallback(
     async (
@@ -144,7 +147,7 @@ export default function HomePage() {
         setTransactionsLoading(false);
       }
     },
-    [currentMonth],
+    [currentMonth, parseApiJson],
   );
 
   const persistSectionOrder = useCallback(async (nextOrder: DashboardSectionId[]) => {
@@ -182,7 +185,7 @@ export default function HomePage() {
     };
 
     init();
-  }, [fetchDashboardData, fetchPaymentMethods, fetchTransactions]);
+  }, [fetchDashboardData, fetchPaymentMethods, fetchSectionOrder, fetchTransactions]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -245,12 +248,88 @@ export default function HomePage() {
   };
 
   const handleCreateTransaction = async (dto: CreateTransactionDTO) => {
-    await fetch('/api/transactions', {
+    const createRes = await fetch('/api/transactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dto),
     });
-    await Promise.all([fetchDashboardData(), fetchTransactions(transactionFilters)]);
+
+    const createdTransaction = await parseApiJson<Transaction>(createRes);
+    if (createdTransaction) {
+      setTransactions((prev) => [createdTransaction, ...prev.filter((tx) => tx.id !== createdTransaction.id)]);
+
+      if (createdTransaction.transactionDate.startsWith(currentMonth)) {
+        setDashboardData((prev) => {
+          if (!prev) {
+            return prev;
+          }
+
+          const nextCashflow = { ...prev.cashflow };
+          if (!createdTransaction.excludeFromBilling) {
+            if (createdTransaction.amount > 0) {
+              nextCashflow.income += createdTransaction.amount;
+            } else {
+              nextCashflow.expense += Math.abs(createdTransaction.amount);
+            }
+            nextCashflow.balance += createdTransaction.amount;
+          }
+
+          const nextCardPerformances = prev.cardPerformances.map((card) => {
+            const isTargetCard = createdTransaction.paymentMethodId === card.paymentMethodId;
+            const isExpense = createdTransaction.amount < 0;
+            const isWithinPerformancePeriod =
+              createdTransaction.transactionDate >= card.performancePeriodStart &&
+              createdTransaction.transactionDate <= card.performancePeriodEnd;
+            const isIncludedInPerformance = !(
+              card.paymentMethodType === 'CREDIT' && createdTransaction.excludeFromPerformance
+            );
+
+            if (!isTargetCard || !isExpense || !isWithinPerformancePeriod || !isIncludedInPerformance) {
+              return card;
+            }
+
+            const nextUsageTransactions = [
+              {
+                id: createdTransaction.id,
+                transactionDate: createdTransaction.transactionDate,
+                amount: Math.abs(createdTransaction.amount),
+                category: createdTransaction.category,
+                memo: createdTransaction.memo,
+              },
+              ...card.usageTransactions.filter((transaction) => transaction.id !== createdTransaction.id),
+            ].sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+
+            const nextCurrentPerformance = nextUsageTransactions.reduce(
+              (sum, transaction) => sum + transaction.amount,
+              0,
+            );
+            const nextTiers = card.tiers.map((tier) => ({
+              ...tier,
+              achieved: nextCurrentPerformance >= tier.thresholdAmount,
+            }));
+            const nextTier = nextTiers.find((tier) => !tier.achieved);
+
+            return {
+              ...card,
+              usageTransactions: nextUsageTransactions,
+              currentPerformance: nextCurrentPerformance,
+              tiers: nextTiers,
+              nextTierRemaining: nextTier ? nextTier.thresholdAmount - nextCurrentPerformance : null,
+            };
+          });
+
+          return {
+            cashflow: nextCashflow,
+            cardPerformances: nextCardPerformances,
+          };
+        });
+      }
+    }
+
+    await Promise.all([
+      fetchDashboardData(),
+      fetchTransactions(transactionFilters, { showLoading: false }),
+    ]);
   };
 
   const handleDeleteTransaction = async (id: string) => {

@@ -46,9 +46,15 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const { paymentMethodId, thresholdAmount, benefitDesc, sortOrder } = body;
+  const normalizedThreshold = Number(thresholdAmount);
+  const normalizedSortOrder = Number(sortOrder);
+  const normalizedBenefitDesc = typeof benefitDesc === 'string' ? benefitDesc : '';
 
-  if (!paymentMethodId || thresholdAmount === undefined || !benefitDesc) {
-    return NextResponse.json({ error: 'paymentMethodId, thresholdAmount, benefitDesc required' }, { status: 400 });
+  if (!paymentMethodId || !Number.isFinite(normalizedThreshold)) {
+    return NextResponse.json(
+      { error: 'paymentMethodId and thresholdAmount are required' },
+      { status: 400 },
+    );
   }
 
   const pool = await getDb();
@@ -59,7 +65,13 @@ export async function POST(request: Request) {
     await client.query(
       `INSERT INTO benefit_tiers (id, payment_method_id, threshold_amount, benefit_desc, sort_order)
        VALUES ($1, $2, $3, $4, $5)`,
-      [id, paymentMethodId, thresholdAmount, benefitDesc, sortOrder ?? 0]
+      [
+        id,
+        paymentMethodId,
+        Math.max(0, Math.round(normalizedThreshold)),
+        normalizedBenefitDesc,
+        Number.isFinite(normalizedSortOrder) ? Math.round(normalizedSortOrder) : 0,
+      ]
     );
 
     const result = await client.query(

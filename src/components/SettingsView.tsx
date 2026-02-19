@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CreditCard, Landmark, Plus, Save, Trash2, ChevronRight, Settings, X,
 } from 'lucide-react';
@@ -22,13 +22,67 @@ const TYPE_LABELS: Record<PaymentMethodType, string> = {
   CASH: '현금',
 };
 
+const DEFAULT_BILLING_DAY = 14;
+const DEFAULT_PERFORMANCE_START_DAY = 1;
+
+const clampDay = (value: number) => Math.min(Math.max(Math.round(value), 1), 31);
+
+const toDayNumber = (
+  value: number | string | null | undefined,
+  fallback: number,
+) => {
+  const parsed = typeof value === 'string' ? parseInt(value, 10) : Number(value);
+  if (!Number.isFinite(parsed)) {
+    return clampDay(fallback);
+  }
+  return clampDay(parsed);
+};
+
+const getSuggestedPerformanceStartDay = (
+  billingDay: number | string | null | undefined,
+) => {
+  const day = toDayNumber(billingDay, DEFAULT_BILLING_DAY);
+  return day >= 14 ? day - 13 : day + 18;
+};
+
+const formatPerformanceRangeLabel = (startDay: number) => {
+  const day = toDayNumber(startDay, DEFAULT_PERFORMANCE_START_DAY);
+  if (day === 1) {
+    return '전월 1일 ~ 전월 말일';
+  }
+  return `전월 ${day}일 ~ 당월 ${day - 1}일`;
+};
+
+const normalizeThresholdAmount = (value: string | number) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+  return Math.max(0, Math.round(parsed));
+};
+
 export default function SettingsView({ paymentMethods, onRefresh }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(
-    paymentMethods[0]?.id ?? null
+    paymentMethods[0]?.id ?? null,
   );
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const selected = paymentMethods.find(pm => pm.id === selectedId);
+  useEffect(() => {
+    if (showAddForm) {
+      return;
+    }
+
+    if (!selectedId && paymentMethods[0]?.id) {
+      setSelectedId(paymentMethods[0].id);
+      return;
+    }
+
+    if (selectedId && !paymentMethods.some((paymentMethod) => paymentMethod.id === selectedId)) {
+      setSelectedId(paymentMethods[0]?.id ?? null);
+    }
+  }, [paymentMethods, selectedId, showAddForm]);
+
+  const selected = paymentMethods.find((pm) => pm.id === selectedId);
 
   return (
     <div className="flex flex-col md:flex-row gap-6 animate-fade-in">
@@ -37,6 +91,7 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-bold text-primary">결제 수단 관리</h2>
             <button
+              type="button"
               onClick={() => setShowAddForm(true)}
               className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100 flex items-center gap-1"
               aria-label="새 결제 수단 추가"
@@ -45,9 +100,10 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
             </button>
           </div>
           <div className="space-y-2">
-            {paymentMethods.map(pm => (
-               <button
+            {paymentMethods.map((pm) => (
+              <button
                 key={pm.id}
+                type="button"
                 onClick={() => { setSelectedId(pm.id); setShowAddForm(false); }}
                 aria-label={`${pm.name} 선택`}
                 aria-pressed={selectedId === pm.id}
@@ -88,7 +144,7 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
             onDeleted={() => { setSelectedId(null); onRefresh(); }}
           />
         ) : (
-           <div className="h-full flex flex-col items-center justify-center text-muted surface-card rounded-xl p-10 min-h-[300px]">
+          <div className="h-full flex flex-col items-center justify-center text-muted surface-card rounded-xl p-10 min-h-[300px]">
             <Settings size={48} aria-hidden="true" className="mb-4 opacity-20" />
             <p>왼쪽 목록에서 관리할 결제 수단을 선택하세요.</p>
           </div>
@@ -101,21 +157,60 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
 function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<PaymentMethodType>('CREDIT');
-  const [billingDay, setBillingDay] = useState('14');
-  const [performanceStartDay, setPerformanceStartDay] = useState(1);
+  const [billingDay, setBillingDay] = useState(String(DEFAULT_BILLING_DAY));
+  const [performanceStartDay, setPerformanceStartDay] = useState(
+    getSuggestedPerformanceStartDay(DEFAULT_BILLING_DAY),
+  );
+  const [isPerformanceStartDayManual, setIsPerformanceStartDayManual] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const suggestedPerformanceStartDay = getSuggestedPerformanceStartDay(billingDay);
+  const normalizedPerformanceStartDay = toDayNumber(
+    performanceStartDay,
+    suggestedPerformanceStartDay,
+  );
+
+  const handleTypeChange = (nextType: PaymentMethodType) => {
+    setType(nextType);
+    if (nextType !== 'CREDIT') {
+      setIsPerformanceStartDayManual(false);
+      setPerformanceStartDay(DEFAULT_PERFORMANCE_START_DAY);
+      return;
+    }
+    if (!isPerformanceStartDayManual) {
+      setPerformanceStartDay(suggestedPerformanceStartDay);
+    }
+  };
+
+  const handleBillingDayChange = (value: string) => {
+    setBillingDay(value);
+    if (!isPerformanceStartDayManual) {
+      setPerformanceStartDay(getSuggestedPerformanceStartDay(value));
+    }
+  };
+
+  const applySuggestedPerformanceStartDay = () => {
+    setIsPerformanceStartDayManual(false);
+    setPerformanceStartDay(suggestedPerformanceStartDay);
+  };
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
+    const normalizedBillingDay = type === 'CREDIT'
+      ? toDayNumber(billingDay, DEFAULT_BILLING_DAY)
+      : null;
+
     await fetch('/api/payment-methods', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
         type,
-        billingDay: type === 'CREDIT' ? parseInt(billingDay, 10) : null,
-        performanceStartDay,
+        billingDay: normalizedBillingDay,
+        performanceStartDay: type === 'CREDIT'
+          ? normalizedPerformanceStartDay
+          : DEFAULT_PERFORMANCE_START_DAY,
       }),
     });
     setSaving(false);
@@ -127,6 +222,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
       <div className="flex justify-between items-start border-b pb-4" style={{ borderColor: 'var(--border)' }}>
         <h3 id="add-payment-title" className="text-lg font-bold text-primary">새 결제 수단 추가</h3>
         <button
+          type="button"
           onClick={onCancel}
           className="text-muted hover:text-primary"
           aria-label="새 결제 수단 추가 창 닫기"
@@ -142,7 +238,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
             id="add-payment-name"
             type="text"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder="예: 신한카드"
             autoComplete="off"
             className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
@@ -153,7 +249,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
           <select
             id="add-payment-type"
             value={type}
-            onChange={e => setType(e.target.value as PaymentMethodType)}
+            onChange={(e) => handleTypeChange(e.target.value as PaymentMethodType)}
             className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             {Object.entries(TYPE_LABELS).map(([k, v]) => (
@@ -170,7 +266,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
                   id="add-payment-billing-day"
                   type="number"
                   value={billingDay}
-                  onChange={e => setBillingDay(e.target.value)}
+                  onChange={(e) => handleBillingDayChange(e.target.value)}
                   min="1"
                   max="31"
                   className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
@@ -179,21 +275,41 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
               </div>
             </div>
             <div>
-              <label htmlFor="add-payment-performance-start" className="block text-xs font-semibold text-secondary mb-1">실적 산정 기준</label>
-              <select
-                id="add-payment-performance-start"
-                value={performanceStartDay}
-                onChange={e => setPerformanceStartDay(parseInt(e.target.value, 10))}
-                className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                <option value={1}>전월 1일 ~ 전월 말일</option>
-              </select>
+              <label htmlFor="add-payment-performance-start" className="block text-xs font-semibold text-secondary mb-1">
+                실적 산정 시작일
+              </label>
+              <div className="relative">
+                <input
+                  id="add-payment-performance-start"
+                  type="number"
+                  value={normalizedPerformanceStartDay}
+                  min="1"
+                  max="31"
+                  onChange={(e) => {
+                    setIsPerformanceStartDayManual(true);
+                    setPerformanceStartDay(toDayNumber(e.target.value, suggestedPerformanceStartDay));
+                  }}
+                  className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
+                />
+                <span className="absolute right-3 top-2 text-muted text-sm">일</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-[11px] text-muted">{formatPerformanceRangeLabel(normalizedPerformanceStartDay)}</p>
+                <button
+                  type="button"
+                  onClick={applySuggestedPerformanceStartDay}
+                  className="text-[11px] text-indigo-600 hover:underline"
+                >
+                  결제일 기준 추천값: {suggestedPerformanceStartDay}일
+                </button>
+              </div>
             </div>
           </>
         )}
       </div>
 
       <button
+        type="button"
         onClick={handleSave}
         disabled={saving || !name.trim()}
         className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50"
@@ -216,20 +332,76 @@ function EditPaymentMethodForm({
   const [name, setName] = useState(method.name);
   const [type, setType] = useState<PaymentMethodType>(method.type);
   const [billingDay, setBillingDay] = useState(String(method.billingDay ?? ''));
-  const [performanceStartDay, setPerformanceStartDay] = useState(method.performanceStartDay);
+  const [performanceStartDay, setPerformanceStartDay] = useState(
+    toDayNumber(
+      method.performanceStartDay,
+      getSuggestedPerformanceStartDay(method.billingDay ?? DEFAULT_BILLING_DAY),
+    ),
+  );
+  const [isPerformanceStartDayManual, setIsPerformanceStartDayManual] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tiers, setTiers] = useState(method.benefitTiers);
 
+  useEffect(() => {
+    setName(method.name);
+    setType(method.type);
+    setBillingDay(String(method.billingDay ?? ''));
+    setPerformanceStartDay(
+      toDayNumber(
+        method.performanceStartDay,
+        getSuggestedPerformanceStartDay(method.billingDay ?? DEFAULT_BILLING_DAY),
+      ),
+    );
+    setIsPerformanceStartDayManual(false);
+    setTiers(method.benefitTiers);
+  }, [method]);
+
+  const suggestedPerformanceStartDay = getSuggestedPerformanceStartDay(billingDay);
+  const normalizedPerformanceStartDay = toDayNumber(
+    performanceStartDay,
+    suggestedPerformanceStartDay,
+  );
+
+  const handleTypeChange = (nextType: PaymentMethodType) => {
+    setType(nextType);
+    if (nextType !== 'CREDIT') {
+      setIsPerformanceStartDayManual(false);
+      setPerformanceStartDay(DEFAULT_PERFORMANCE_START_DAY);
+      return;
+    }
+    if (!isPerformanceStartDayManual) {
+      setPerformanceStartDay(suggestedPerformanceStartDay);
+    }
+  };
+
+  const handleBillingDayChange = (value: string) => {
+    setBillingDay(value);
+    if (!isPerformanceStartDayManual) {
+      setPerformanceStartDay(getSuggestedPerformanceStartDay(value));
+    }
+  };
+
+  const applySuggestedPerformanceStartDay = () => {
+    setIsPerformanceStartDayManual(false);
+    setPerformanceStartDay(suggestedPerformanceStartDay);
+  };
+
   const handleSave = async () => {
     setSaving(true);
+    const normalizedBillingDay = type === 'CREDIT'
+      ? toDayNumber(billingDay, DEFAULT_BILLING_DAY)
+      : null;
+
     await fetch(`/api/payment-methods/${method.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
         type,
-        billingDay: type === 'CREDIT' ? parseInt(billingDay, 10) || null : null,
-        performanceStartDay,
+        billingDay: normalizedBillingDay,
+        performanceStartDay: type === 'CREDIT'
+          ? normalizedPerformanceStartDay
+          : DEFAULT_PERFORMANCE_START_DAY,
       }),
     });
     setSaving(false);
@@ -243,7 +415,7 @@ function EditPaymentMethodForm({
   };
 
   const handleAddTier = async () => {
-    const maxOrder = tiers.length > 0 ? Math.max(...tiers.map(t => t.sortOrder)) : 0;
+    const maxOrder = tiers.length > 0 ? Math.max(...tiers.map((tier) => tier.sortOrder)) : 0;
     const res = await fetch('/api/benefit-tiers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -254,62 +426,84 @@ function EditPaymentMethodForm({
         sortOrder: maxOrder + 1,
       }),
     });
+
+    if (!res.ok) {
+      return;
+    }
+
     const newTier = await res.json() as BenefitTier;
-    setTiers(prev => [...prev, newTier]);
+    setTiers((prev) => [...prev, newTier]);
   };
 
-  const handleUpdateTier = async (tierId: string, field: 'thresholdAmount' | 'benefitDesc', value: string) => {
-    setTiers(prev =>
-      prev.map(t =>
-        t.id === tierId
-          ? { ...t, [field]: field === 'thresholdAmount' ? parseInt(value, 10) || 0 : value }
-          : t
-      )
-    );
+  const handleUpdateTier = (tierId: string, field: 'thresholdAmount' | 'benefitDesc', value: string) => {
+    setTiers((prev) => prev.map((tier) => (
+      tier.id === tierId
+        ? { ...tier, [field]: field === 'thresholdAmount' ? normalizeThresholdAmount(value) : value }
+        : tier
+    )));
   };
 
-  const handleSaveTier = async (tier: BenefitTier) => {
-    await fetch(`/api/benefit-tiers/${tier.id}`, {
+  const handleSaveTier = async (
+    tierId: string,
+    patch: Partial<Pick<BenefitTier, 'thresholdAmount' | 'benefitDesc' | 'sortOrder'>> = {},
+  ) => {
+    let nextTier: BenefitTier | null = null;
+    setTiers((prev) => prev.map((tier) => {
+      if (tier.id !== tierId) {
+        return tier;
+      }
+      const mergedTier: BenefitTier = { ...tier, ...patch };
+      nextTier = mergedTier;
+      return mergedTier;
+    }));
+
+    if (!nextTier) {
+      return;
+    }
+
+    await fetch(`/api/benefit-tiers/${tierId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        thresholdAmount: tier.thresholdAmount,
-        benefitDesc: tier.benefitDesc,
-        sortOrder: tier.sortOrder,
+        thresholdAmount: nextTier.thresholdAmount,
+        benefitDesc: nextTier.benefitDesc,
+        sortOrder: nextTier.sortOrder,
       }),
     });
   };
 
   const handleDeleteTier = async (tierId: string) => {
     await fetch(`/api/benefit-tiers/${tierId}`, { method: 'DELETE' });
-    setTiers(prev => prev.filter(t => t.id !== tierId));
+    setTiers((prev) => prev.filter((tier) => tier.id !== tierId));
   };
 
   return (
     <div className="surface-card rounded-xl p-6 space-y-6">
       <div className="flex justify-between items-start border-b pb-4" style={{ borderColor: 'var(--border)' }}>
-         <div>
-           <h3 id="edit-payment-title" className="text-lg font-bold text-primary">{method.name} 수정</h3>
-           <p className="text-xs text-secondary">ID: {method.id.slice(0, 8)}...</p>
-         </div>
-         <div className="flex gap-2">
-           <button
-             onClick={handleDelete}
-             className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-             aria-label={`${method.name} 삭제`}
-             title="삭제"
-           >
-             <Trash2 size={18} aria-hidden="true" />
-           </button>
-           <button
-             onClick={handleSave}
-             disabled={saving}
-             aria-label="결제 수단 수정 저장"
-             className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50"
-           >
-             <Save size={16} aria-hidden="true" /> {saving ? '저장 중...' : '저장'}
-           </button>
-         </div>
+        <div>
+          <h3 id="edit-payment-title" className="text-lg font-bold text-primary">{method.name} 수정</h3>
+          <p className="text-xs text-secondary">ID: {method.id.slice(0, 8)}...</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+            aria-label={`${method.name} 삭제`}
+            title="삭제"
+          >
+            <Trash2 size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            aria-label="결제 수단 수정 저장"
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50"
+          >
+            <Save size={16} aria-hidden="true" /> {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4" aria-labelledby="edit-payment-title">
@@ -319,7 +513,7 @@ function EditPaymentMethodForm({
             id="edit-payment-name"
             type="text"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           />
         </div>
@@ -328,7 +522,7 @@ function EditPaymentMethodForm({
           <select
             id="edit-payment-type"
             value={type}
-            onChange={e => setType(e.target.value as PaymentMethodType)}
+            onChange={(e) => handleTypeChange(e.target.value as PaymentMethodType)}
             className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             {Object.entries(TYPE_LABELS).map(([k, v]) => (
@@ -348,7 +542,7 @@ function EditPaymentMethodForm({
                   id="edit-payment-billing-day"
                   type="number"
                   value={billingDay}
-                  onChange={e => setBillingDay(e.target.value)}
+                  onChange={(e) => handleBillingDayChange(e.target.value)}
                   min="1"
                   max="31"
                   className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
@@ -358,16 +552,33 @@ function EditPaymentMethodForm({
             </div>
             <div>
               <label htmlFor="edit-payment-performance-start" className="block text-xs font-semibold text-secondary mb-1">
-                실적 산정 기준 <span className="text-xs font-normal text-muted">(혜택 계산용)</span>
+                실적 산정 시작일 <span className="text-xs font-normal text-muted">(혜택 계산용)</span>
               </label>
-              <select
-                id="edit-payment-performance-start"
-                value={performanceStartDay}
-                onChange={e => setPerformanceStartDay(parseInt(e.target.value, 10))}
-                className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                <option value={1}>전월 1일 ~ 전월 말일</option>
-              </select>
+              <div className="relative">
+                <input
+                  id="edit-payment-performance-start"
+                  type="number"
+                  value={normalizedPerformanceStartDay}
+                  min="1"
+                  max="31"
+                  onChange={(e) => {
+                    setIsPerformanceStartDayManual(true);
+                    setPerformanceStartDay(toDayNumber(e.target.value, suggestedPerformanceStartDay));
+                  }}
+                  className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
+                />
+                <span className="absolute right-3 top-2 text-muted text-sm">일</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-[11px] text-muted">{formatPerformanceRangeLabel(normalizedPerformanceStartDay)}</p>
+                <button
+                  type="button"
+                  onClick={applySuggestedPerformanceStartDay}
+                  className="text-[11px] text-indigo-600 hover:underline"
+                >
+                  결제일 기준 추천값: {suggestedPerformanceStartDay}일
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -380,6 +591,7 @@ function EditPaymentMethodForm({
               🎁 혜택 구간 설정
             </h4>
             <button
+              type="button"
               aria-label="혜택 구간 추가"
               onClick={handleAddTier}
               className="text-xs text-indigo-600 font-medium hover:underline flex items-center gap-1"
@@ -401,8 +613,10 @@ function EditPaymentMethodForm({
                       aria-label={`${idx + 1}단계 실적 기준 금액`}
                       type="number"
                       value={tier.thresholdAmount}
-                      onChange={e => handleUpdateTier(tier.id, 'thresholdAmount', e.target.value)}
-                      onBlur={() => handleSaveTier(tier)}
+                      onChange={(e) => handleUpdateTier(tier.id, 'thresholdAmount', e.target.value)}
+                      onBlur={(e) => {
+                        void handleSaveTier(tier.id, { thresholdAmount: normalizeThresholdAmount(e.target.value) });
+                      }}
                       className="w-full border rounded p-1.5 text-sm pl-2 bg-transparent text-primary"
                       placeholder="기준 실적"
                     />
@@ -414,13 +628,16 @@ function EditPaymentMethodForm({
                       aria-label={`${idx + 1}단계 혜택 설명`}
                       type="text"
                       value={tier.benefitDesc}
-                      onChange={e => handleUpdateTier(tier.id, 'benefitDesc', e.target.value)}
-                      onBlur={() => handleSaveTier(tier)}
+                      onChange={(e) => handleUpdateTier(tier.id, 'benefitDesc', e.target.value)}
+                      onBlur={(e) => {
+                        void handleSaveTier(tier.id, { benefitDesc: e.target.value });
+                      }}
                       className="w-full border rounded p-1.5 text-sm bg-transparent text-primary"
                       placeholder="혜택 내용 (예: 통신비 할인)"
                     />
                   </div>
                   <button
+                    type="button"
                     aria-label={`혜택 구간 ${idx + 1} 삭제`}
                     onClick={() => handleDeleteTier(tier.id)}
                     className="text-muted hover:text-red-500 p-1"
