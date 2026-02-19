@@ -107,11 +107,10 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
                 onClick={() => { setSelectedId(pm.id); setShowAddForm(false); }}
                 aria-label={`${pm.name} 선택`}
                 aria-pressed={selectedId === pm.id}
-                className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors ${
-                  selectedId === pm.id
+                className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors ${selectedId === pm.id
                     ? 'bg-indigo-600 text-white shadow-md'
                     : 'surface-soft text-secondary hover:brightness-95'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   {pm.type === 'CREDIT' || pm.type === 'CHECK'
@@ -447,7 +446,7 @@ function EditPaymentMethodForm({
     tierId: string,
     patch: Partial<Pick<BenefitTier, 'thresholdAmount' | 'benefitDesc' | 'sortOrder'>> = {},
   ) => {
-    let nextTier: BenefitTier | null = null;
+    let nextTier = null as BenefitTier | null;
     setTiers((prev) => prev.map((tier) => {
       if (tier.id !== tierId) {
         return tier;
