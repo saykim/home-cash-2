@@ -108,8 +108,8 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
                 aria-label={`${pm.name} 선택`}
                 aria-pressed={selectedId === pm.id}
                 className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors ${selectedId === pm.id
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'surface-soft text-secondary hover:brightness-95'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'surface-soft text-secondary hover:brightness-95'
                   }`}
               >
                 <div className="flex items-center gap-3">
@@ -435,11 +435,15 @@ function EditPaymentMethodForm({
   };
 
   const handleUpdateTier = (tierId: string, field: 'thresholdAmount' | 'benefitDesc', value: string) => {
-    setTiers((prev) => prev.map((tier) => (
-      tier.id === tierId
-        ? { ...tier, [field]: field === 'thresholdAmount' ? normalizeThresholdAmount(value) : value }
-        : tier
-    )));
+    setTiers((prev) => prev.map((tier) => {
+      if (tier.id !== tierId) return tier;
+      if (field === 'thresholdAmount') {
+        // onChange 중에는 raw값 유지 (0을 앞에 고정시키지 않기 위해 normalze는 onBlur에서만)
+        const parsed = value === '' ? 0 : Number(value);
+        return { ...tier, thresholdAmount: Number.isFinite(parsed) ? parsed : tier.thresholdAmount };
+      }
+      return { ...tier, benefitDesc: value };
+    }));
   };
 
   const handleSaveTier = async (
@@ -611,13 +615,14 @@ function EditPaymentMethodForm({
                       id={`edit-tier-threshold-${tier.id}`}
                       aria-label={`${idx + 1}단계 실적 기준 금액`}
                       type="number"
-                      value={tier.thresholdAmount}
+                      min="0"
+                      value={tier.thresholdAmount === 0 ? '' : tier.thresholdAmount}
                       onChange={(e) => handleUpdateTier(tier.id, 'thresholdAmount', e.target.value)}
                       onBlur={(e) => {
                         void handleSaveTier(tier.id, { thresholdAmount: normalizeThresholdAmount(e.target.value) });
                       }}
                       className="w-full border rounded p-1.5 text-sm pl-2 bg-transparent text-primary"
-                      placeholder="기준 실적"
+                      placeholder="기준 실적 (원)"
                     />
                     <span className="absolute right-2 top-1.5 text-xs text-muted">원 이상</span>
                   </div>
