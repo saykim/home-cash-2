@@ -24,9 +24,17 @@ interface PaymentMethodWithTiers extends PaymentMethod {
   benefitTiers: BenefitTier[];
 }
 
+interface BillingSummary {
+  currentMonth: number;
+  nextMonth: number;
+  currentMonthLabel: string;
+  nextMonthLabel: string;
+}
+
 interface DashboardData {
   cashflow: CashflowData;
   cardPerformances: CardPerformance[];
+  billingSummary: BillingSummary;
 }
 
 type DashboardSectionId = 'card-performance' | 'monthly-trends' | 'recent-transactions';
@@ -349,6 +357,7 @@ export default function HomePage() {
           return {
             cashflow: nextCashflow,
             cardPerformances: nextCardPerformances,
+            billingSummary: prev.billingSummary,  // 서버 재조회 시 갱신됨
           };
         });
       }
@@ -439,6 +448,7 @@ export default function HomePage() {
           filters={transactionFilters}
           categories={categories}
           currentMonth={currentMonth}
+          billingSummary={dashboardData?.billingSummary ?? null}
           isLoading={transactionsLoading}
           onChangeFilters={handleTransactionFiltersChange}
           onDelete={handleDeleteTransaction}

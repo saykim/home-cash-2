@@ -13,12 +13,20 @@ export interface TransactionFilters {
   performance: 'all' | 'included' | 'excluded';
 }
 
+interface BillingSummary {
+  currentMonth: number;
+  nextMonth: number;
+  currentMonthLabel: string;
+  nextMonthLabel: string;
+}
+
 interface Props {
   transactions: Transaction[];
   filters: TransactionFilters;
   paymentMethods: PaymentMethod[];
   categories: string[];
   currentMonth: string;  // 'YYYY-MM'
+  billingSummary: BillingSummary | null;
   onChangeFilters: (filters: TransactionFilters) => void;
   isLoading?: boolean;
   onDelete?: (id: string) => void;
@@ -31,6 +39,7 @@ export default function TransactionTable({
   paymentMethods,
   categories,
   currentMonth,
+  billingSummary,
   onChangeFilters,
   isLoading = false,
   onDelete,
@@ -49,23 +58,7 @@ export default function TransactionTable({
   const rowCount = transactions.length;
   const totalAmount = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
-  /* 신용카드 거래의 결제 월(YYYY-MM) 계산 */
-  const getBillingMonth = (tx: Transaction): string | null => {
-    if (!tx.paymentMethodId || tx.amount >= 0) return null;
-    const pm = paymentMethods.find(p => p.id === tx.paymentMethodId);
-    if (!pm || pm.type !== 'CREDIT' || !pm.billingDay) return null;
-    const [yStr, mStr, dStr] = tx.transactionDate.split('-');
-    const txDay = Number(dStr);
-    let bYear = Number(yStr);
-    let bMonth = Number(mStr);
-    if (txDay >= pm.billingDay) {
-      bMonth += 1;
-      if (bMonth > 12) { bMonth = 1; bYear += 1; }
-    }
-    return `${bYear}-${String(bMonth).padStart(2, '0')}`;
-  };
-
-  /* 결제일 레이블 (M/D 표시용) */
+  /* 결제일 레이블 (개별 row M/D 표시용) */
   const getBillingLabel = (tx: Transaction): string | null => {
     if (!tx.paymentMethodId) return null;
     const pm = paymentMethods.find(p => p.id === tx.paymentMethodId);
@@ -83,27 +76,15 @@ export default function TransactionTable({
     return `결제 ${bMonth}/${safeDay}`;
   };
 
-  /* 통계 계산 (필터된 전체 거래 기준) */
-  const [cmYear, cmMonth] = currentMonth.split('-').map(Number);
+  /* 통계 값: 수입/지출은 현재 거래 기준, 결제는 서버 집계 */
+  const [, cmMonthStr] = currentMonth.split('-');
+  const cmMonth = Number(cmMonthStr);
   const nextMonthNum = cmMonth === 12 ? 1 : cmMonth + 1;
-  const nextMonthYear = cmMonth === 12 ? cmYear + 1 : cmYear;
-  const nextMonth = `${nextMonthYear}-${String(nextMonthNum).padStart(2, '0')}`;
-  const nextMonthLabel = `${nextMonthNum}월`;
   const currentMonthLabel = `${cmMonth}월`;
+  const nextMonthLabel = `${nextMonthNum}월`;
 
-  // 전체 transactions(필터 무관 전월~현월 범위) 기준 → 아래 all_tx를 사용
-  // 단, TransactionTable은 이미 필터된 transactions를 받음
-  // 수입/지출은 모든 필터된 거래 기준
   const income = transactions.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
   const expense = transactions.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
-
-  // 결제월 기준 그룹 (신용카드 지출만)
-  const thisMonthBilling = transactions
-    .filter(tx => getBillingMonth(tx) === currentMonth)
-    .reduce((s, tx) => s + Math.abs(tx.amount), 0);
-  const nextMonthBilling = transactions
-    .filter(tx => getBillingMonth(tx) === nextMonth)
-    .reduce((s, tx) => s + Math.abs(tx.amount), 0);
 
   const formatMoney = (value: number, withSign = false) => {
     const amount = moneyFormatter.format(value);
@@ -248,12 +229,12 @@ export default function TransactionTable({
           <p className="text-sm font-bold text-primary tabular-nums">-{moneyFormatter.format(expense)}원</p>
         </div>
         <div className="rounded-xl px-3 py-2.5 border border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-          <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-0.5">{currentMonthLabel} 결제</p>
-          <p className="text-sm font-bold text-amber-700 tabular-nums">{moneyFormatter.format(thisMonthBilling)}원</p>
+          <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-0.5">{billingSummary?.currentMonthLabel ?? `${currentMonthLabel} 결제`}</p>
+          <p className="text-sm font-bold text-amber-700 tabular-nums">{moneyFormatter.format(billingSummary?.currentMonth ?? 0)}원</p>
         </div>
         <div className="rounded-xl px-3 py-2.5 border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20">
-          <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wide mb-0.5">{nextMonthLabel} 결제 예정</p>
-          <p className="text-sm font-bold text-indigo-700 tabular-nums">{moneyFormatter.format(nextMonthBilling)}원</p>
+          <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wide mb-0.5">{billingSummary?.nextMonthLabel ?? `${nextMonthLabel} 결제 예정`}</p>
+          <p className="text-sm font-bold text-indigo-700 tabular-nums">{moneyFormatter.format(billingSummary?.nextMonth ?? 0)}원</p>
         </div>
       </div>
 

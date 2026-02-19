@@ -68,6 +68,9 @@ const clampDay = (day: number | null | undefined, fallback = DEFAULT_PERFORMANCE
 const getPreviousMonth = (year: number, month: number) =>
   month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 
+const getNextMonth = (year: number, month: number) =>
+  month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+
 const getMonthRange = (year: number, month: number) => {
   const daysInMonth = getDaysInMonth(year, month);
   return {
@@ -101,6 +104,36 @@ const getPerformanceWindow = (year: number, month: number, performanceStartDay: 
     start: toDateKey(previousMonth.year, previousMonth.month, startDayClamped),
     end: toDateKey(year, month, endDay),
     startDay: safeStartDay,
+  };
+};
+
+/**
+ * billingDay 기준 결제 창 계산.
+ * "M월 결제" = 전월 billingDay일 ~ 당월 (billingDay-1)일 사용분
+ * billingDay=1: 전월 1일 ~ 전월 말일 사용분
+ * billingDay=14: 전월 14일 ~ 당월 13일 사용분
+ */
+const getBillingWindow = (year: number, month: number, billingDay: number) => {
+  const safeBillingDay = clampDay(billingDay);
+
+  if (safeBillingDay === 1) {
+    // 전월 1일 ~ 전월 말일
+    const prev = getPreviousMonth(year, month);
+    const daysInPrev = getDaysInMonth(prev.year, prev.month);
+    return {
+      start: toDateKey(prev.year, prev.month, 1),
+      end: toDateKey(prev.year, prev.month, daysInPrev),
+    };
+  }
+
+  // 전월 billingDay일 ~ 당월 (billingDay-1)일
+  const prev = getPreviousMonth(year, month);
+  const startDayClamped = Math.min(safeBillingDay, getDaysInMonth(prev.year, prev.month));
+  const endDay = Math.min(safeBillingDay - 1, getDaysInMonth(year, month));
+
+  return {
+    start: toDateKey(prev.year, prev.month, startDayClamped),
+    end: toDateKey(year, month, endDay),
   };
 };
 
@@ -164,9 +197,11 @@ export async function GET(request: Request) {
     const previousMonth = getPreviousMonth(year, monthNumber);
     const previousMonthRange = getMonthRange(previousMonth.year, previousMonth.month);
     const monthRange = getMonthRange(year, monthNumber);
-    const nextMonthYear = monthNumber === 12 ? year + 1 : year;
-    const nextMonthNum = monthNumber === 12 ? 1 : monthNumber + 1;
-    const nextMonthRange = getMonthRange(nextMonthYear, nextMonthNum);
+    const next = getNextMonth(year, monthNumber);
+    const nextMonthRange = getMonthRange(next.year, next.month);
+    // 결제 창 계산을 위해 2개월 전까지 쿼리 범위 확장
+    const twoMonthsAgo = getPreviousMonth(previousMonth.year, previousMonth.month);
+    const twoMonthsAgoRange = getMonthRange(twoMonthsAgo.year, twoMonthsAgo.month);
     const transactionRes = await client.query(
       `
       SELECT
@@ -184,7 +219,7 @@ export async function GET(request: Request) {
         AND transaction_date <= $2
       ORDER BY transaction_date DESC, created_at DESC
     `,
-      [previousMonthRange.start, nextMonthRange.end],
+      [twoMonthsAgoRange.start, nextMonthRange.end],
     );
     const transactionRows = transactionRes.rows as PerformanceTransactionRow[];
 
@@ -265,7 +300,37 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({ cashflow, cardPerformances });
+    // ── billing 집계 (billingDay 기준 결제 창 별) ──
+    const creditMethods = methodRows.filter(m => m.type === 'CREDIT' && m.billing_day);
+
+    let currentMonthBilling = 0;
+    let nextMonthBilling = 0;
+
+    for (const method of creditMethods) {
+      const bd = clampDay(method.billing_day);
+      const txs = transactionsByPaymentMethod.get(method.id) ?? [];
+
+      // 당월 결제 창
+      const cmWindow = getBillingWindow(year, monthNumber, bd);
+      currentMonthBilling += txs
+        .filter(tx => tx.transaction_date >= cmWindow.start && tx.transaction_date <= cmWindow.end)
+        .reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
+
+      // 익월 결제 창
+      const nmWindow = getBillingWindow(next.year, next.month, bd);
+      nextMonthBilling += txs
+        .filter(tx => tx.transaction_date >= nmWindow.start && tx.transaction_date <= nmWindow.end)
+        .reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
+    }
+
+    const billingSummary = {
+      currentMonth: currentMonthBilling,
+      nextMonth: nextMonthBilling,
+      currentMonthLabel: `${monthNumber}월 결제`,
+      nextMonthLabel: `${next.month}월 결제 예정`,
+    };
+
+    return NextResponse.json({ cashflow, cardPerformances, billingSummary });
   } finally {
     client.release();
   }
