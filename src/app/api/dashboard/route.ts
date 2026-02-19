@@ -77,46 +77,34 @@ const getMonthRange = (year: number, month: number) => {
 };
 
 const getPerformanceWindow = (year: number, month: number, performanceStartDay: number) => {
-  const previousMonth = getPreviousMonth(year, month);
   const safeStartDay = clampDay(performanceStartDay);
-  const previousMonthDay = Math.min(
+
+  // startDay=1: 당월 1일 ~ 당월 말일
+  if (safeStartDay === 1) {
+    const daysInMonth = getDaysInMonth(year, month);
+    return {
+      start: toDateKey(year, month, 1),
+      end: toDateKey(year, month, daysInMonth),
+      startDay: 1,
+    };
+  }
+
+  // startDay>1: 전월 startDay일 ~ 당월 (startDay-1)일
+  const previousMonth = getPreviousMonth(year, month);
+  const startDayClamped = Math.min(
     safeStartDay,
     getDaysInMonth(previousMonth.year, previousMonth.month),
   );
-  const currentAnchorDay = Math.min(safeStartDay, getDaysInMonth(year, month));
-  const currentAnchorDate = new Date(
-    Date.UTC(year, month - 1, currentAnchorDay),
-  );
-  const endDate = new Date(currentAnchorDate.getTime() - ONE_DAY_MS);
+  const endDay = Math.min(safeStartDay - 1, getDaysInMonth(year, month));
 
   return {
-    start: toDateKey(previousMonth.year, previousMonth.month, previousMonthDay),
-    end: endDate.toISOString().slice(0, 10),
+    start: toDateKey(previousMonth.year, previousMonth.month, startDayClamped),
+    end: toDateKey(year, month, endDay),
     startDay: safeStartDay,
   };
 };
 
-/**
- * 오늘 날짜와 카드 실적 시작일을 비교하여 getPerformanceWindow()에 넘길 기준 월을 결정.
- * - 오늘이 startDay 미만: 이번 달 실적 기간이 아직 시작 전 → 현재 월 기준
- * - 오늘이 startDay 이상: 이번 달 새 실적 기간이 시작됨 → 다음 달 기준
- */
-const resolvePerformanceMonth = (
-  today: Date,
-  performanceStartDay: number,
-): { year: number; month: number } => {
-  const todayDay = today.getDate();
-  const todayYear = today.getFullYear();
-  const todayMonth = today.getMonth() + 1;
-
-  if (todayDay < performanceStartDay) {
-    return { year: todayYear, month: todayMonth };
-  }
-  if (todayMonth === 12) {
-    return { year: todayYear + 1, month: 1 };
-  }
-  return { year: todayYear, month: todayMonth + 1 };
-};
+/* resolvePerformanceMonth 제거됨: 조회 month를 직접 사용 */
 
 export async function GET(request: Request) {
   const unauthorized = await requireAuth();
@@ -213,10 +201,7 @@ export async function GET(request: Request) {
     const cardPerformances: CardPerformance[] = methodRows.map((methodRow) => {
       const startDay = clampDay(methodRow.performance_start_day);
       const performanceWindow = methodRow.type === "CREDIT"
-        ? (() => {
-            const perfMonth = resolvePerformanceMonth(now, startDay);
-            return getPerformanceWindow(perfMonth.year, perfMonth.month, startDay);
-          })()
+        ? getPerformanceWindow(year, monthNumber, startDay)
         : {
           start: monthRange.start,
           end: monthRange.end,

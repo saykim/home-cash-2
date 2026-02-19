@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   CreditCard, Landmark, Plus, Save, Trash2, ChevronRight, Settings, X,
+  ChevronUp, ChevronDown,
 } from 'lucide-react';
 import type { PaymentMethod, BenefitTier, PaymentMethodType } from '@/types';
 
@@ -32,15 +33,11 @@ const toDayNumber = (
   fallback: number,
 ) => {
   const parsed = typeof value === 'string' ? parseInt(value, 10) : Number(value);
-  if (!Number.isFinite(parsed)) {
-    return clampDay(fallback);
-  }
+  if (!Number.isFinite(parsed)) return clampDay(fallback);
   return clampDay(parsed);
 };
 
-const getSuggestedPerformanceStartDay = (
-  billingDay: number | string | null | undefined,
-) => {
+const getSuggestedPerformanceStartDay = (billingDay: number | string | null | undefined) => {
   const day = toDayNumber(billingDay, DEFAULT_BILLING_DAY);
   return day >= 14 ? day - 13 : day + 18;
 };
@@ -48,18 +45,96 @@ const getSuggestedPerformanceStartDay = (
 const formatPerformanceRangeLabel = (startDay: number) => {
   const day = toDayNumber(startDay, DEFAULT_PERFORMANCE_START_DAY);
   if (day === 1) {
-    return '전월 1일 ~ 전월 말일';
+    return '당월 1일 ~ 당월 말일';
   }
   return `전월 ${day}일 ~ 당월 ${day - 1}일`;
 };
 
 const normalizeThresholdAmount = (value: string | number) => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return 0;
-  }
+  if (!Number.isFinite(parsed)) return 0;
   return Math.max(0, Math.round(parsed));
 };
+
+/* ─── 공통 컴포넌트 ─────────────────────────────────── */
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold text-muted uppercase tracking-wide mb-1.5">{children}</p>
+  );
+}
+
+function InputBase({ className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className={`w-full border rounded-lg px-3 py-2 text-sm bg-transparent text-primary
+        focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow
+        placeholder:text-muted ${className}`}
+      style={{ borderColor: 'var(--border)' }}
+    />
+  );
+}
+
+function SelectBase({ className = '', ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      {...props}
+      className={`w-full border rounded-lg px-3 py-2 text-sm bg-transparent text-primary
+        focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-shadow ${className}`}
+      style={{ borderColor: 'var(--border)' }}
+    />
+  );
+}
+
+/* 일(day) 스테퍼 입력 */
+function DayInput({
+  id,
+  value,
+  onChange,
+  min = 1,
+  max = 31,
+}: {
+  id: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+}) {
+  const step = (dir: 1 | -1) => onChange(clampDay(value + dir));
+  return (
+    <div className="flex items-center border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        className="px-2.5 py-2 text-muted hover:text-primary hover:bg-[color:var(--bg-soft)] transition-colors"
+        aria-label={`${id} 감소`}
+      >
+        <ChevronDown size={14} />
+      </button>
+      <input
+        id={id}
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        onChange={(e) => onChange(clampDay(Number(e.target.value) || min))}
+        className="flex-1 text-center text-sm font-semibold text-primary bg-transparent border-none outline-none w-10 py-2 tabular-nums"
+        style={{ MozAppearance: 'textfield' } as React.CSSProperties}
+      />
+      <button
+        type="button"
+        onClick={() => step(1)}
+        className="px-2.5 py-2 text-muted hover:text-primary hover:bg-[color:var(--bg-soft)] transition-colors"
+        aria-label={`${id} 증가`}
+      >
+        <ChevronUp size={14} />
+      </button>
+    </div>
+  );
+}
+
+/* ─── 메인 SettingsView ─────────────────────────────── */
 
 export default function SettingsView({ paymentMethods, onRefresh }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -68,16 +143,12 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
-    if (showAddForm) {
-      return;
-    }
-
+    if (showAddForm) return;
     if (!selectedId && paymentMethods[0]?.id) {
       setSelectedId(paymentMethods[0].id);
       return;
     }
-
-    if (selectedId && !paymentMethods.some((paymentMethod) => paymentMethod.id === selectedId)) {
+    if (selectedId && !paymentMethods.some((pm) => pm.id === selectedId)) {
       setSelectedId(paymentMethods[0]?.id ?? null);
     }
   }, [paymentMethods, selectedId, showAddForm]);
@@ -85,21 +156,22 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
   const selected = paymentMethods.find((pm) => pm.id === selectedId);
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 animate-fade-in">
-      <div className="w-full md:w-1/3 space-y-4">
-        <div className="surface-card rounded-xl p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold text-primary">결제 수단 관리</h2>
+    <div className="flex flex-col md:flex-row gap-5 animate-fade-in">
+      {/* ── 좌: 결제 수단 목록 ── */}
+      <div className="w-full md:w-72 shrink-0 space-y-3">
+        <div className="surface-card rounded-xl overflow-hidden">
+          <div className="flex justify-between items-center px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+            <h2 className="text-sm font-bold text-primary">결제 수단</h2>
             <button
               type="button"
               onClick={() => setShowAddForm(true)}
-              className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100 flex items-center gap-1"
+              className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full transition-colors"
               aria-label="새 결제 수단 추가"
             >
-              <Plus size={14} aria-hidden="true" /> 추가
+              <Plus size={12} /> 추가
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="p-2 space-y-0.5">
             {paymentMethods.map((pm) => (
               <button
                 key={pm.id}
@@ -107,29 +179,32 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
                 onClick={() => { setSelectedId(pm.id); setShowAddForm(false); }}
                 aria-label={`${pm.name} 선택`}
                 aria-pressed={selectedId === pm.id}
-                className={`w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors ${selectedId === pm.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'surface-soft text-secondary hover:brightness-95'
+                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between transition-all text-sm ${selectedId === pm.id && !showAddForm
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-secondary hover:bg-[color:var(--bg-soft)]'
                   }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   {pm.type === 'CREDIT' || pm.type === 'CHECK'
-                    ? <CreditCard size={18} aria-hidden="true" />
-                    : <Landmark size={18} aria-hidden="true" />}
-                  <span className="font-medium text-sm">{pm.name}</span>
+                    ? <CreditCard size={15} aria-hidden="true" />
+                    : <Landmark size={15} aria-hidden="true" />}
+                  <span className="font-medium truncate max-w-[140px]">{pm.name}</span>
                 </div>
-                {selectedId === pm.id && <ChevronRight size={16} aria-hidden="true" />}
+                {selectedId === pm.id && !showAddForm && <ChevronRight size={14} aria-hidden="true" />}
               </button>
             ))}
+            {paymentMethods.length === 0 && (
+              <p className="text-xs text-muted text-center py-6">결제 수단이 없습니다.</p>
+            )}
           </div>
         </div>
-
-        <div className="accent-chip p-4 rounded-xl text-xs leading-relaxed">
-          💡 <strong>Tip:</strong> 여기서 설정한 &apos;실적 기준일&apos;과 &apos;혜택 구간&apos;은 대시보드 게이지에 즉시 반영됩니다.
+        <div className="rounded-xl px-3.5 py-3 text-[11px] text-secondary leading-relaxed border border-dashed" style={{ borderColor: 'var(--border)' }}>
+          💡 실적 기준일과 혜택 구간은 대시보드에 즉시 반영됩니다.
         </div>
       </div>
 
-      <div className="w-full md:w-2/3">
+      {/* ── 우: 편집 영역 ── */}
+      <div className="flex-1 min-w-0">
         {showAddForm ? (
           <AddPaymentMethodForm
             onCreated={() => { setShowAddForm(false); onRefresh(); }}
@@ -144,8 +219,8 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
           />
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-muted surface-card rounded-xl p-10 min-h-[300px]">
-            <Settings size={48} aria-hidden="true" className="mb-4 opacity-20" />
-            <p>왼쪽 목록에서 관리할 결제 수단을 선택하세요.</p>
+            <Settings size={40} aria-hidden="true" className="mb-3 opacity-20" />
+            <p className="text-sm">결제 수단을 선택하거나 추가하세요.</p>
           </div>
         )}
       </div>
@@ -153,63 +228,46 @@ export default function SettingsView({ paymentMethods, onRefresh }: Props) {
   );
 }
 
+/* ─── 새 결제 수단 추가 폼 ─────────────────────────── */
+
 function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<PaymentMethodType>('CREDIT');
-  const [billingDay, setBillingDay] = useState(String(DEFAULT_BILLING_DAY));
+  const [billingDay, setBillingDay] = useState(DEFAULT_BILLING_DAY);
   const [performanceStartDay, setPerformanceStartDay] = useState(
     getSuggestedPerformanceStartDay(DEFAULT_BILLING_DAY),
   );
-  const [isPerformanceStartDayManual, setIsPerformanceStartDayManual] = useState(false);
+  const [isManual, setIsManual] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const suggestedPerformanceStartDay = getSuggestedPerformanceStartDay(billingDay);
-  const normalizedPerformanceStartDay = toDayNumber(
-    performanceStartDay,
-    suggestedPerformanceStartDay,
-  );
+  const suggested = getSuggestedPerformanceStartDay(billingDay);
 
   const handleTypeChange = (nextType: PaymentMethodType) => {
     setType(nextType);
     if (nextType !== 'CREDIT') {
-      setIsPerformanceStartDayManual(false);
+      setIsManual(false);
       setPerformanceStartDay(DEFAULT_PERFORMANCE_START_DAY);
-      return;
-    }
-    if (!isPerformanceStartDayManual) {
-      setPerformanceStartDay(suggestedPerformanceStartDay);
+    } else if (!isManual) {
+      setPerformanceStartDay(suggested);
     }
   };
 
-  const handleBillingDayChange = (value: string) => {
-    setBillingDay(value);
-    if (!isPerformanceStartDayManual) {
-      setPerformanceStartDay(getSuggestedPerformanceStartDay(value));
-    }
-  };
-
-  const applySuggestedPerformanceStartDay = () => {
-    setIsPerformanceStartDayManual(false);
-    setPerformanceStartDay(suggestedPerformanceStartDay);
+  const handleBillingDayChange = (v: number) => {
+    setBillingDay(v);
+    if (!isManual) setPerformanceStartDay(getSuggestedPerformanceStartDay(v));
   };
 
   const handleSave = async () => {
     if (!name.trim()) return;
     setSaving(true);
-    const normalizedBillingDay = type === 'CREDIT'
-      ? toDayNumber(billingDay, DEFAULT_BILLING_DAY)
-      : null;
-
     await fetch('/api/payment-methods', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
         type,
-        billingDay: normalizedBillingDay,
-        performanceStartDay: type === 'CREDIT'
-          ? normalizedPerformanceStartDay
-          : DEFAULT_PERFORMANCE_START_DAY,
+        billingDay: type === 'CREDIT' ? billingDay : null,
+        performanceStartDay: type === 'CREDIT' ? performanceStartDay : DEFAULT_PERFORMANCE_START_DAY,
       }),
     });
     setSaving(false);
@@ -217,107 +275,85 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
   };
 
   return (
-    <div className="surface-card rounded-xl p-6 space-y-6">
-      <div className="flex justify-between items-start border-b pb-4" style={{ borderColor: 'var(--border)' }}>
-        <h3 id="add-payment-title" className="text-lg font-bold text-primary">새 결제 수단 추가</h3>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-muted hover:text-primary"
-          aria-label="새 결제 수단 추가 창 닫기"
-        >
-          <X size={20} aria-hidden="true" />
+    <div className="surface-card rounded-xl overflow-hidden">
+      {/* 헤더 */}
+      <div className="flex justify-between items-center px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+        <h3 className="text-sm font-bold text-primary">새 결제 수단 추가</h3>
+        <button type="button" onClick={onCancel} className="text-muted hover:text-primary p-1" aria-label="닫기">
+          <X size={18} />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4" aria-labelledby="add-payment-title">
-        <div>
-          <label htmlFor="add-payment-name" className="block text-xs font-semibold text-secondary mb-1">이름 (별칭)</label>
-          <input
-            id="add-payment-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="예: 신한카드"
-            autoComplete="off"
-            className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          />
+      <div className="p-5 space-y-5">
+        {/* 이름 + 유형 */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>이름 (별칭)</FieldLabel>
+            <InputBase
+              id="add-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="예: 신한카드"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <FieldLabel>유형</FieldLabel>
+            <SelectBase id="add-type" value={type} onChange={(e) => handleTypeChange(e.target.value as PaymentMethodType)}>
+              {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </SelectBase>
+          </div>
         </div>
-        <div>
-          <label htmlFor="add-payment-type" className="block text-xs font-semibold text-secondary mb-1">유형</label>
-          <select
-            id="add-payment-type"
-            value={type}
-            onChange={(e) => handleTypeChange(e.target.value as PaymentMethodType)}
-            className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          >
-            {Object.entries(TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-        </div>
-        {type === 'CREDIT' && (
-          <>
-            <div>
-              <label htmlFor="add-payment-billing-day" className="block text-xs font-semibold text-secondary mb-1">결제일</label>
-              <div className="relative">
-                <input
-                  id="add-payment-billing-day"
-                  type="number"
-                  value={billingDay}
-                  onChange={(e) => handleBillingDayChange(e.target.value)}
-                  min="1"
-                  max="31"
-                  className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
-                />
-                <span className="absolute right-3 top-2 text-muted text-sm">일</span>
-              </div>
-            </div>
-            <div>
-              <label htmlFor="add-payment-performance-start" className="block text-xs font-semibold text-secondary mb-1">
-                실적 산정 시작일
-              </label>
-              <div className="relative">
-                <input
-                  id="add-payment-performance-start"
-                  type="number"
-                  value={normalizedPerformanceStartDay}
-                  min="1"
-                  max="31"
-                  onChange={(e) => {
-                    setIsPerformanceStartDayManual(true);
-                    setPerformanceStartDay(toDayNumber(e.target.value, suggestedPerformanceStartDay));
-                  }}
-                  className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
-                />
-                <span className="absolute right-3 top-2 text-muted text-sm">일</span>
-              </div>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="text-[11px] text-muted">{formatPerformanceRangeLabel(normalizedPerformanceStartDay)}</p>
-                <button
-                  type="button"
-                  onClick={applySuggestedPerformanceStartDay}
-                  className="text-[11px] text-indigo-600 hover:underline"
-                >
-                  결제일 기준 추천값: {suggestedPerformanceStartDay}일
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
 
-      <button
-        type="button"
-        onClick={handleSave}
-        disabled={saving || !name.trim()}
-        className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50"
-      >
-        <Save size={16} aria-hidden="true" /> {saving ? '저장 중...' : '저장'}
-      </button>
+        {/* 신용카드 전용 날짜 */}
+        {type === 'CREDIT' && (
+          <div className="grid grid-cols-2 gap-4 py-4 border-t border-b" style={{ borderColor: 'var(--border)' }}>
+            <div>
+              <FieldLabel>결제일</FieldLabel>
+              <DayInput id="add-billing-day" value={billingDay} onChange={handleBillingDayChange} />
+              <p className="text-[10px] text-muted mt-1 pl-1">카드 대금 납부일</p>
+            </div>
+            <div>
+              <FieldLabel>실적 산정 시작일</FieldLabel>
+              <DayInput
+                id="add-perf-start"
+                value={performanceStartDay}
+                onChange={(v) => { setIsManual(true); setPerformanceStartDay(v); }}
+              />
+              <div className="flex items-center justify-between mt-1 pl-1 gap-1">
+                <p className="text-[10px] text-muted whitespace-nowrap">{formatPerformanceRangeLabel(performanceStartDay)}</p>
+                {isManual && (
+                  <button
+                    type="button"
+                    onClick={() => { setIsManual(false); setPerformanceStartDay(suggested); }}
+                    className="text-[10px] text-indigo-500 hover:text-indigo-700 whitespace-nowrap"
+                  >
+                    추천({suggested}일)
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !name.trim()}
+          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-40 transition-colors"
+        >
+          <Save size={15} aria-hidden="true" />
+          {saving ? '저장 중…' : '저장'}
+        </button>
+      </div>
     </div>
   );
 }
+
+/* ─── 결제 수단 수정 폼 ─────────────────────────────── */
 
 function EditPaymentMethodForm({
   method,
@@ -330,77 +366,56 @@ function EditPaymentMethodForm({
 }) {
   const [name, setName] = useState(method.name);
   const [type, setType] = useState<PaymentMethodType>(method.type);
-  const [billingDay, setBillingDay] = useState(String(method.billingDay ?? ''));
+  const [billingDay, setBillingDay] = useState(
+    toDayNumber(method.billingDay, DEFAULT_BILLING_DAY),
+  );
   const [performanceStartDay, setPerformanceStartDay] = useState(
     toDayNumber(
       method.performanceStartDay,
       getSuggestedPerformanceStartDay(method.billingDay ?? DEFAULT_BILLING_DAY),
     ),
   );
-  const [isPerformanceStartDayManual, setIsPerformanceStartDayManual] = useState(false);
+  const [isManual, setIsManual] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tiers, setTiers] = useState(method.benefitTiers);
 
   useEffect(() => {
     setName(method.name);
     setType(method.type);
-    setBillingDay(String(method.billingDay ?? ''));
+    setBillingDay(toDayNumber(method.billingDay, DEFAULT_BILLING_DAY));
     setPerformanceStartDay(
       toDayNumber(
         method.performanceStartDay,
         getSuggestedPerformanceStartDay(method.billingDay ?? DEFAULT_BILLING_DAY),
       ),
     );
-    setIsPerformanceStartDayManual(false);
+    setIsManual(false);
     setTiers(method.benefitTiers);
   }, [method]);
 
-  const suggestedPerformanceStartDay = getSuggestedPerformanceStartDay(billingDay);
-  const normalizedPerformanceStartDay = toDayNumber(
-    performanceStartDay,
-    suggestedPerformanceStartDay,
-  );
+  const suggested = getSuggestedPerformanceStartDay(billingDay);
 
   const handleTypeChange = (nextType: PaymentMethodType) => {
     setType(nextType);
-    if (nextType !== 'CREDIT') {
-      setIsPerformanceStartDayManual(false);
-      setPerformanceStartDay(DEFAULT_PERFORMANCE_START_DAY);
-      return;
-    }
-    if (!isPerformanceStartDayManual) {
-      setPerformanceStartDay(suggestedPerformanceStartDay);
-    }
+    if (nextType !== 'CREDIT') { setIsManual(false); setPerformanceStartDay(DEFAULT_PERFORMANCE_START_DAY); }
+    else if (!isManual) setPerformanceStartDay(suggested);
   };
 
-  const handleBillingDayChange = (value: string) => {
-    setBillingDay(value);
-    if (!isPerformanceStartDayManual) {
-      setPerformanceStartDay(getSuggestedPerformanceStartDay(value));
-    }
-  };
-
-  const applySuggestedPerformanceStartDay = () => {
-    setIsPerformanceStartDayManual(false);
-    setPerformanceStartDay(suggestedPerformanceStartDay);
+  const handleBillingDayChange = (v: number) => {
+    setBillingDay(v);
+    if (!isManual) setPerformanceStartDay(getSuggestedPerformanceStartDay(v));
   };
 
   const handleSave = async () => {
     setSaving(true);
-    const normalizedBillingDay = type === 'CREDIT'
-      ? toDayNumber(billingDay, DEFAULT_BILLING_DAY)
-      : null;
-
     await fetch(`/api/payment-methods/${method.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name,
         type,
-        billingDay: normalizedBillingDay,
-        performanceStartDay: type === 'CREDIT'
-          ? normalizedPerformanceStartDay
-          : DEFAULT_PERFORMANCE_START_DAY,
+        billingDay: type === 'CREDIT' ? billingDay : null,
+        performanceStartDay: type === 'CREDIT' ? performanceStartDay : DEFAULT_PERFORMANCE_START_DAY,
       }),
     });
     setSaving(false);
@@ -413,36 +428,27 @@ function EditPaymentMethodForm({
     onDeleted();
   };
 
+  /* 혜택 구간 */
   const handleAddTier = async () => {
-    const maxOrder = tiers.length > 0 ? Math.max(...tiers.map((tier) => tier.sortOrder)) : 0;
+    const maxOrder = tiers.length > 0 ? Math.max(...tiers.map((t) => t.sortOrder)) : 0;
     const res = await fetch('/api/benefit-tiers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        paymentMethodId: method.id,
-        thresholdAmount: 0,
-        benefitDesc: '',
-        sortOrder: maxOrder + 1,
-      }),
+      body: JSON.stringify({ paymentMethodId: method.id, thresholdAmount: 0, benefitDesc: '', sortOrder: maxOrder + 1 }),
     });
-
-    if (!res.ok) {
-      return;
-    }
-
+    if (!res.ok) return;
     const newTier = await res.json() as BenefitTier;
     setTiers((prev) => [...prev, newTier]);
   };
 
   const handleUpdateTier = (tierId: string, field: 'thresholdAmount' | 'benefitDesc', value: string) => {
-    setTiers((prev) => prev.map((tier) => {
-      if (tier.id !== tierId) return tier;
+    setTiers((prev) => prev.map((t) => {
+      if (t.id !== tierId) return t;
       if (field === 'thresholdAmount') {
-        // onChange 중에는 raw값 유지 (0을 앞에 고정시키지 않기 위해 normalze는 onBlur에서만)
         const parsed = value === '' ? 0 : Number(value);
-        return { ...tier, thresholdAmount: Number.isFinite(parsed) ? parsed : tier.thresholdAmount };
+        return { ...t, thresholdAmount: Number.isFinite(parsed) ? parsed : t.thresholdAmount };
       }
-      return { ...tier, benefitDesc: value };
+      return { ...t, benefitDesc: value };
     }));
   };
 
@@ -451,206 +457,177 @@ function EditPaymentMethodForm({
     patch: Partial<Pick<BenefitTier, 'thresholdAmount' | 'benefitDesc' | 'sortOrder'>> = {},
   ) => {
     const currentTier = tiers.find((t) => t.id === tierId);
-    if (!currentTier) {
-      return;
-    }
-
+    if (!currentTier) return;
     const merged: BenefitTier = { ...currentTier, ...patch };
-
-    // UI 즉시 반영
     setTiers((prev) => prev.map((t) => (t.id === tierId ? merged : t)));
-
-    // 서버 저장
     await fetch(`/api/benefit-tiers/${tierId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        thresholdAmount: merged.thresholdAmount,
-        benefitDesc: merged.benefitDesc,
-        sortOrder: merged.sortOrder,
-      }),
+      body: JSON.stringify({ thresholdAmount: merged.thresholdAmount, benefitDesc: merged.benefitDesc, sortOrder: merged.sortOrder }),
     });
   };
 
   const handleDeleteTier = async (tierId: string) => {
     await fetch(`/api/benefit-tiers/${tierId}`, { method: 'DELETE' });
-    setTiers((prev) => prev.filter((tier) => tier.id !== tierId));
+    setTiers((prev) => prev.filter((t) => t.id !== tierId));
   };
 
   return (
-    <div className="surface-card rounded-xl p-6 space-y-6">
-      <div className="flex justify-between items-start border-b pb-4" style={{ borderColor: 'var(--border)' }}>
+    <div className="surface-card rounded-xl overflow-hidden">
+      {/* 헤더 */}
+      <div className="flex justify-between items-center px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
         <div>
-          <h3 id="edit-payment-title" className="text-lg font-bold text-primary">{method.name} 수정</h3>
-          <p className="text-xs text-secondary">ID: {method.id.slice(0, 8)}...</p>
+          <h3 className="text-sm font-bold text-primary">{method.name}</h3>
+          <p className="text-[10px] text-muted mt-0.5">{TYPE_LABELS[type]}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleDelete}
-            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+            className="p-1.5 text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             aria-label={`${method.name} 삭제`}
-            title="삭제"
           >
-            <Trash2 size={18} aria-hidden="true" />
+            <Trash2 size={16} aria-hidden="true" />
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            aria-label="결제 수단 수정 저장"
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm disabled:opacity-50"
+            className="flex items-center gap-1.5 bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-xs font-semibold disabled:opacity-40 transition-colors"
           >
-            <Save size={16} aria-hidden="true" /> {saving ? '저장 중...' : '저장'}
+            <Save size={14} aria-hidden="true" /> {saving ? '저장 중…' : '저장'}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4" aria-labelledby="edit-payment-title">
-        <div>
-          <label htmlFor="edit-payment-name" className="block text-xs font-semibold text-secondary mb-1">이름 (별칭)</label>
-          <input
-            id="edit-payment-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label htmlFor="edit-payment-type" className="block text-xs font-semibold text-secondary mb-1">유형</label>
-          <select
-            id="edit-payment-type"
-            value={type}
-            onChange={(e) => handleTypeChange(e.target.value as PaymentMethodType)}
-            className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          >
-            {Object.entries(TYPE_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-        </div>
-
-        {type === 'CREDIT' && (
-          <>
-            <div>
-              <label htmlFor="edit-payment-billing-day" className="block text-xs font-semibold text-secondary mb-1">
-                결제일 <span className="text-xs font-normal text-muted">(자금 흐름용)</span>
-              </label>
-              <div className="relative">
-                <input
-                  id="edit-payment-billing-day"
-                  type="number"
-                  value={billingDay}
-                  onChange={(e) => handleBillingDayChange(e.target.value)}
-                  min="1"
-                  max="31"
-                  className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
-                />
-                <span className="absolute right-3 top-2 text-muted text-sm">일</span>
-              </div>
-            </div>
-            <div>
-              <label htmlFor="edit-payment-performance-start" className="block text-xs font-semibold text-secondary mb-1">
-                실적 산정 시작일 <span className="text-xs font-normal text-muted">(혜택 계산용)</span>
-              </label>
-              <div className="relative">
-                <input
-                  id="edit-payment-performance-start"
-                  type="number"
-                  value={normalizedPerformanceStartDay}
-                  min="1"
-                  max="31"
-                  onChange={(e) => {
-                    setIsPerformanceStartDayManual(true);
-                    setPerformanceStartDay(toDayNumber(e.target.value, suggestedPerformanceStartDay));
-                  }}
-                  className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-8"
-                />
-                <span className="absolute right-3 top-2 text-muted text-sm">일</span>
-              </div>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="text-[11px] text-muted">{formatPerformanceRangeLabel(normalizedPerformanceStartDay)}</p>
-                <button
-                  type="button"
-                  onClick={applySuggestedPerformanceStartDay}
-                  className="text-[11px] text-indigo-600 hover:underline"
-                >
-                  결제일 기준 추천값: {suggestedPerformanceStartDay}일
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {type === 'CREDIT' && (
-        <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex justify-between items-center mb-3">
-            <h4 className="text-sm font-bold text-primary flex items-center gap-2">
-              🎁 혜택 구간 설정
-            </h4>
-            <button
-              type="button"
-              aria-label="혜택 구간 추가"
-              onClick={handleAddTier}
-              className="text-xs text-indigo-600 font-medium hover:underline flex items-center gap-1"
-            >
-              <Plus size={14} aria-hidden="true" /> 구간 추가
-            </button>
+      <div className="p-5 space-y-5">
+        {/* 이름 + 유형 */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>이름 (별칭)</FieldLabel>
+            <InputBase id="edit-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
+          <div>
+            <FieldLabel>유형</FieldLabel>
+            <SelectBase id="edit-type" value={type} onChange={(e) => handleTypeChange(e.target.value as PaymentMethodType)}>
+              {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </SelectBase>
+          </div>
+        </div>
 
-          <div className="space-y-3 surface-soft p-4 rounded-lg">
-            {tiers.length === 0 ? (
-              <div className="text-center text-muted text-xs py-4">등록된 혜택 구간이 없습니다.</div>
-            ) : (
-              tiers.map((tier, idx) => (
-                <div key={tier.id} className="flex gap-2 items-center">
-                  <div className="w-8 text-xs text-muted font-medium text-center">Lv.{idx + 1}</div>
-                  <div className="flex-1 relative">
+        {/* 신용카드 전용: 결제일 + 산정일 */}
+        {type === 'CREDIT' && (
+          <div className="grid grid-cols-2 gap-4 py-4 border-t border-b" style={{ borderColor: 'var(--border)' }}>
+            <div>
+              <FieldLabel>결제일</FieldLabel>
+              <DayInput id="edit-billing-day" value={billingDay} onChange={handleBillingDayChange} />
+              <p className="text-[10px] text-muted mt-1 pl-1">카드 대금 납부일</p>
+            </div>
+            <div>
+              <FieldLabel>실적 산정 시작일</FieldLabel>
+              <DayInput
+                id="edit-perf-start"
+                value={performanceStartDay}
+                onChange={(v) => { setIsManual(true); setPerformanceStartDay(v); }}
+              />
+              <div className="flex items-center justify-between mt-1 pl-1 gap-1">
+                <p className="text-[10px] text-muted whitespace-nowrap truncate">{formatPerformanceRangeLabel(performanceStartDay)}</p>
+                {isManual && (
+                  <button
+                    type="button"
+                    onClick={() => { setIsManual(false); setPerformanceStartDay(suggested); }}
+                    className="text-[10px] text-indigo-500 hover:text-indigo-700 whitespace-nowrap shrink-0"
+                  >
+                    추천({suggested}일)
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 혜택 구간 (신용카드만) */}
+        {type === 'CREDIT' && (
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="text-xs font-bold text-primary flex items-center gap-1.5">
+                🎁 혜택 구간
+              </h4>
+              <button
+                type="button"
+                onClick={handleAddTier}
+                className="flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors"
+              >
+                <Plus size={12} /> 구간 추가
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {tiers.length === 0 ? (
+                <div className="rounded-lg border border-dashed text-center text-xs text-muted py-6" style={{ borderColor: 'var(--border)' }}>
+                  혜택 구간을 추가해보세요
+                </div>
+              ) : (
+                tiers.map((tier, idx) => (
+                  <div
+                    key={tier.id}
+                    className="grid items-center gap-2 rounded-lg px-3 py-2.5"
+                    style={{
+                      backgroundColor: 'var(--bg-soft)',
+                      gridTemplateColumns: '28px 1fr 1.6fr 28px',
+                    }}
+                  >
+                    {/* 레벨 */}
+                    <span className="text-[10px] font-bold text-muted text-center">Lv{idx + 1}</span>
+
+                    {/* 기준 금액 */}
+                    <div className="relative">
+                      <input
+                        id={`tier-threshold-${tier.id}`}
+                        aria-label={`${idx + 1}단계 기준 금액`}
+                        type="number"
+                        min="0"
+                        value={tier.thresholdAmount === 0 ? '' : tier.thresholdAmount}
+                        onChange={(e) => handleUpdateTier(tier.id, 'thresholdAmount', e.target.value)}
+                        onBlur={(e) => { void handleSaveTier(tier.id, { thresholdAmount: normalizeThresholdAmount(e.target.value) }); }}
+                        placeholder="기준 금액"
+                        className="w-full border rounded-lg pl-2 pr-6 py-1.5 text-xs bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        style={{ borderColor: 'var(--border)' }}
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted pointer-events-none">원↑</span>
+                    </div>
+
+                    {/* 혜택 설명 */}
                     <input
-                      id={`edit-tier-threshold-${tier.id}`}
-                      aria-label={`${idx + 1}단계 실적 기준 금액`}
-                      type="number"
-                      min="0"
-                      value={tier.thresholdAmount === 0 ? '' : tier.thresholdAmount}
-                      onChange={(e) => handleUpdateTier(tier.id, 'thresholdAmount', e.target.value)}
-                      onBlur={(e) => {
-                        void handleSaveTier(tier.id, { thresholdAmount: normalizeThresholdAmount(e.target.value) });
-                      }}
-                      className="w-full border rounded p-1.5 text-sm pl-2 bg-transparent text-primary"
-                      placeholder="기준 실적 (원)"
-                    />
-                    <span className="absolute right-2 top-1.5 text-xs text-muted">원 이상</span>
-                  </div>
-                  <div className="flex-[2]">
-                    <input
-                      id={`edit-tier-desc-${tier.id}`}
+                      id={`tier-desc-${tier.id}`}
                       aria-label={`${idx + 1}단계 혜택 설명`}
                       type="text"
                       value={tier.benefitDesc}
                       onChange={(e) => handleUpdateTier(tier.id, 'benefitDesc', e.target.value)}
-                      onBlur={(e) => {
-                        void handleSaveTier(tier.id, { benefitDesc: e.target.value });
-                      }}
-                      className="w-full border rounded p-1.5 text-sm bg-transparent text-primary"
-                      placeholder="혜택 내용 (예: 통신비 할인)"
+                      onBlur={(e) => { void handleSaveTier(tier.id, { benefitDesc: e.target.value }); }}
+                      placeholder="혜택 내용"
+                      className="w-full border rounded-lg px-2 py-1.5 text-xs bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      style={{ borderColor: 'var(--border)' }}
                     />
+
+                    {/* 삭제 */}
+                    <button
+                      type="button"
+                      aria-label={`Lv${idx + 1} 삭제`}
+                      onClick={() => handleDeleteTier(tier.id)}
+                      className="text-muted hover:text-red-500 flex items-center justify-center"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    aria-label={`혜택 구간 ${idx + 1} 삭제`}
-                    onClick={() => handleDeleteTier(tier.id)}
-                    className="text-muted hover:text-red-500 p-1"
-                  >
-                    <Trash2 size={14} aria-hidden="true" />
-                  </button>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
