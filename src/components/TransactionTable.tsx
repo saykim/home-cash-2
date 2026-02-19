@@ -18,6 +18,7 @@ interface Props {
   filters: TransactionFilters;
   paymentMethods: PaymentMethod[];
   categories: string[];
+  currentMonth: string;  // 'YYYY-MM'
   onChangeFilters: (filters: TransactionFilters) => void;
   isLoading?: boolean;
   onDelete?: (id: string) => void;
@@ -29,6 +30,7 @@ export default function TransactionTable({
   filters,
   paymentMethods,
   categories,
+  currentMonth,
   onChangeFilters,
   isLoading = false,
   onDelete,
@@ -46,6 +48,62 @@ export default function TransactionTable({
   const moneyFormatter = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 });
   const rowCount = transactions.length;
   const totalAmount = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+
+  /* 신용카드 거래의 결제 월(YYYY-MM) 계산 */
+  const getBillingMonth = (tx: Transaction): string | null => {
+    if (!tx.paymentMethodId || tx.amount >= 0) return null;
+    const pm = paymentMethods.find(p => p.id === tx.paymentMethodId);
+    if (!pm || pm.type !== 'CREDIT' || !pm.billingDay) return null;
+    const [yStr, mStr, dStr] = tx.transactionDate.split('-');
+    const txDay = Number(dStr);
+    let bYear = Number(yStr);
+    let bMonth = Number(mStr);
+    if (txDay >= pm.billingDay) {
+      bMonth += 1;
+      if (bMonth > 12) { bMonth = 1; bYear += 1; }
+    }
+    return `${bYear}-${String(bMonth).padStart(2, '0')}`;
+  };
+
+  /* 결제일 레이블 (M/D 표시용) */
+  const getBillingLabel = (tx: Transaction): string | null => {
+    if (!tx.paymentMethodId) return null;
+    const pm = paymentMethods.find(p => p.id === tx.paymentMethodId);
+    if (!pm || pm.type !== 'CREDIT' || !pm.billingDay) return null;
+    const [yStr, mStr, dStr] = tx.transactionDate.split('-');
+    const txDay = Number(dStr);
+    let bYear = Number(yStr);
+    let bMonth = Number(mStr);
+    if (txDay >= pm.billingDay) {
+      bMonth += 1;
+      if (bMonth > 12) { bMonth = 1; bYear += 1; }
+    }
+    const daysInMonth = new Date(bYear, bMonth, 0).getDate();
+    const safeDay = Math.min(pm.billingDay, daysInMonth);
+    return `결제 ${bMonth}/${safeDay}`;
+  };
+
+  /* 통계 계산 (필터된 전체 거래 기준) */
+  const [cmYear, cmMonth] = currentMonth.split('-').map(Number);
+  const nextMonthNum = cmMonth === 12 ? 1 : cmMonth + 1;
+  const nextMonthYear = cmMonth === 12 ? cmYear + 1 : cmYear;
+  const nextMonth = `${nextMonthYear}-${String(nextMonthNum).padStart(2, '0')}`;
+  const nextMonthLabel = `${nextMonthNum}월`;
+  const currentMonthLabel = `${cmMonth}월`;
+
+  // 전체 transactions(필터 무관 전월~현월 범위) 기준 → 아래 all_tx를 사용
+  // 단, TransactionTable은 이미 필터된 transactions를 받음
+  // 수입/지출은 모든 필터된 거래 기준
+  const income = transactions.filter(tx => tx.amount > 0).reduce((s, tx) => s + tx.amount, 0);
+  const expense = transactions.filter(tx => tx.amount < 0).reduce((s, tx) => s + Math.abs(tx.amount), 0);
+
+  // 결제월 기준 그룹 (신용카드 지출만)
+  const thisMonthBilling = transactions
+    .filter(tx => getBillingMonth(tx) === currentMonth)
+    .reduce((s, tx) => s + Math.abs(tx.amount), 0);
+  const nextMonthBilling = transactions
+    .filter(tx => getBillingMonth(tx) === nextMonth)
+    .reduce((s, tx) => s + Math.abs(tx.amount), 0);
 
   const formatMoney = (value: number, withSign = false) => {
     const amount = moneyFormatter.format(value);
@@ -108,8 +166,8 @@ export default function TransactionTable({
           <option value="all">전체 분류</option>
           {categories.map(category => (
             <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          ))}
+        </select>
 
         <label className="sr-only" htmlFor={paymentMethodId}>결제수단 필터</label>
         <select
@@ -179,20 +237,40 @@ export default function TransactionTable({
         ) : null}
       </div>
 
+      {/* ── 통계 카드 4개 ── */}
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: 'var(--border)', background: 'var(--bg-soft)' }}>
+          <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{currentMonthLabel} 수입</p>
+          <p className="text-sm font-bold text-blue-600 tabular-nums">+{moneyFormatter.format(income)}원</p>
+        </div>
+        <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: 'var(--border)', background: 'var(--bg-soft)' }}>
+          <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{currentMonthLabel} 지출</p>
+          <p className="text-sm font-bold text-primary tabular-nums">-{moneyFormatter.format(expense)}원</p>
+        </div>
+        <div className="rounded-xl px-3 py-2.5 border border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+          <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-0.5">{currentMonthLabel} 결제</p>
+          <p className="text-sm font-bold text-amber-700 tabular-nums">{moneyFormatter.format(thisMonthBilling)}원</p>
+        </div>
+        <div className="rounded-xl px-3 py-2.5 border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20">
+          <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wide mb-0.5">{nextMonthLabel} 결제 예정</p>
+          <p className="text-sm font-bold text-indigo-700 tabular-nums">{moneyFormatter.format(nextMonthBilling)}원</p>
+        </div>
+      </div>
+
       <div className="mb-4 flex items-start sm:items-center justify-between gap-2 rounded-lg surface-soft px-3 py-2 text-xs text-muted">
         <div>
           <p className="text-sm text-primary font-medium">
             필터 적용 내역
           </p>
-            <p aria-live="polite" className="tabular-nums">
-              총 <span className="font-semibold text-primary">{moneyFormatter.format(rowCount)}건</span> · 합계 {isLoading ? '갱신 중…' : formatMoney(totalAmount)}
-            </p>
+          <p aria-live="polite" className="tabular-nums">
+            총 <span className="font-semibold text-primary">{moneyFormatter.format(rowCount)}건</span> · 합계 {isLoading ? '갱신 중…' : formatMoney(totalAmount)}
+          </p>
         </div>
         {isLoading ? (
-            <span className="inline-flex items-center gap-2 text-xs text-secondary">
-              <span className="h-3.5 w-3.5 border-2 border-[color:var(--accent)]/55 border-t-transparent rounded-full animate-spin" />
-              목록 갱신 중
-            </span>
+          <span className="inline-flex items-center gap-2 text-xs text-secondary">
+            <span className="h-3.5 w-3.5 border-2 border-[color:var(--accent)]/55 border-t-transparent rounded-full animate-spin" />
+            목록 갱신 중
+          </span>
         ) : null}
       </div>
 
@@ -201,7 +279,7 @@ export default function TransactionTable({
           <caption className="sr-only">거래 내역표. 총 {rowCount}건</caption>
           <thead className="text-xs uppercase surface-soft">
             <tr>
-              <th scope="col" className="px-4 py-3">날짜</th>
+              <th scope="col" className="px-4 py-3">사용일</th>
               <th scope="col" className="px-4 py-3">구분</th>
               <th scope="col" className="px-4 py-3">내역</th>
               <th scope="col" className="px-4 py-3 text-right">금액</th>
@@ -212,11 +290,18 @@ export default function TransactionTable({
           <tbody>
             {transactions.map(tx => (
               <tr key={tx.id} className="table-row-hover border-b" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-4 py-3 whitespace-nowrap">{tx.transactionDate}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span>{tx.transactionDate}</span>
+                  {tx.amount < 0 && (() => {
+                    const label = getBillingLabel(tx);
+                    return label ? (
+                      <span className="block text-[10px] text-indigo-500 font-medium mt-0.5">{label}</span>
+                    ) : null;
+                  })()}
+                </td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    tx.amount > 0 ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'surface-soft text-secondary'
-                  }`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.amount > 0 ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'surface-soft text-secondary'
+                    }`}>
                     {tx.category ?? '-'}
                   </span>
                 </td>
@@ -226,9 +311,8 @@ export default function TransactionTable({
                     <span className="block text-xs text-muted font-normal">{tx.paymentMethodName}</span>
                   )}
                 </td>
-                <td className={`px-4 py-3 text-right font-bold whitespace-nowrap ${
-                  tx.amount > 0 ? 'text-blue-600' : 'text-primary'
-                }`}>
+                <td className={`px-4 py-3 text-right font-bold whitespace-nowrap ${tx.amount > 0 ? 'text-blue-600' : 'text-primary'
+                  }`}>
                   <span className="tabular-nums">{formatMoney(tx.amount, true)}</span>
                 </td>
                 <td className="px-4 py-3 text-center">
@@ -239,16 +323,16 @@ export default function TransactionTable({
                   )}
                 </td>
                 <td className="px-4 py-3 text-center">
-                {onDelete && (
-                  <button
-                    type="button"
-                    aria-label={`거래 삭제: ${tx.memo || tx.category || tx.transactionDate}`}
-                  onClick={() => onDelete(tx.id)}
-                  className="text-muted hover:text-red-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--danger)]"
-                >
-                    <Trash2 size={14} aria-hidden="true" />
-                  </button>
-                )}
+                  {onDelete && (
+                    <button
+                      type="button"
+                      aria-label={`거래 삭제: ${tx.memo || tx.category || tx.transactionDate}`}
+                      onClick={() => onDelete(tx.id)}
+                      className="text-muted hover:text-red-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--danger)]"
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

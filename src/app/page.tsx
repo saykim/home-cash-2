@@ -438,6 +438,7 @@ export default function HomePage() {
           paymentMethods={paymentMethods}
           filters={transactionFilters}
           categories={categories}
+          currentMonth={currentMonth}
           isLoading={transactionsLoading}
           onChangeFilters={handleTransactionFiltersChange}
           onDelete={handleDeleteTransaction}
