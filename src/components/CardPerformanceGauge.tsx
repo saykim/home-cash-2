@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CreditCard, CheckCircle, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { CreditCard, CheckCircle, ChevronDown, ChevronUp, X, Calendar, CreditCard as BillingIcon } from 'lucide-react';
 import type { CardPerformance } from '@/types';
 
 interface Props {
@@ -9,6 +9,42 @@ interface Props {
 }
 
 const fmt = (n: number) => n.toLocaleString();
+
+/* 날짜 문자열(YYYY-MM-DD)을 M/D 형식으로 */
+const toShortDate = (dateStr: string) => {
+  const [, m, d] = dateStr.split('-').map(Number);
+  return `${m}/${d}`;
+};
+
+/**
+ * 결제 예정일 계산.
+ * 실적 기간 종료일 기준으로, billingDay가 종료일의 일(day)보다 크면 같은 달,
+ * 아니면 다음 달 billingDay.
+ * 예: 기간 종료 2/13, billingDay=14 → 2/14 (동월)
+ * 예: 기간 종료 2/28, billingDay=14 → 3/14 (다음 달)
+ */
+const getExpectedBillingDate = (
+  performancePeriodEnd: string,
+  billingDay: number,
+): string => {
+  const [endYear, endMonth, endDay] = performancePeriodEnd.split('-').map(Number);
+
+  let billingYear = endYear;
+  let billingMonth = endMonth;
+
+  if (endDay >= billingDay) {
+    // 기간 종료일이 결제일 이후면 → 다음 달 결제
+    billingMonth += 1;
+    if (billingMonth > 12) {
+      billingMonth = 1;
+      billingYear += 1;
+    }
+  }
+  // 결제일을 해당 월의 말일로 clamp
+  const daysInBillingMonth = new Date(billingYear, billingMonth, 0).getDate();
+  const safeDay = Math.min(billingDay, daysInBillingMonth);
+  return `${billingMonth}/${safeDay}`;
+};
 
 export default function CardPerformanceGauge({ cards }: Props) {
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
@@ -23,8 +59,6 @@ export default function CardPerformanceGauge({ cards }: Props) {
 
   return (
     <section className="grid gap-4">
-      <h2 className="text-lg font-bold text-primary px-1">결제 수단 실적/사용 현황</h2>
-
       {/* ── 카드 그리드 ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {cards.map((card) => {
@@ -36,21 +70,15 @@ export default function CardPerformanceGauge({ cards }: Props) {
           const nextTier = card.tiers.find((t) => !t.achieved);
           const achievedTiers = card.tiers.filter((t) => t.achieved);
           const isExpanded = expandedCardId === card.paymentMethodId;
+          const isCredit = card.paymentMethodType === 'CREDIT';
 
-          /* 부가 정보 */
-          const infoParts: string[] = [];
-          if (card.paymentMethodType === 'CREDIT' && card.billingDay) {
-            infoParts.push(`결제 ${card.billingDay}일`);
-          } else if (card.paymentMethodType === 'CHECK') {
-            infoParts.push('체크');
-          } else if (card.paymentMethodType === 'CASH') {
-            infoParts.push('현금');
-          } else if (card.paymentMethodType === 'ACCOUNT') {
-            infoParts.push('계좌');
-          }
-          if (card.paymentMethodType === 'CREDIT') {
-            infoParts.push(`산정 ${card.performanceStartDay}일`);
-          }
+          /* 결제 예정일 계산 (신용카드만) */
+          const expectedBillingDate = isCredit && card.billingDay
+            ? getExpectedBillingDate(card.performancePeriodEnd, card.billingDay)
+            : null;
+
+          /* 산정기간 표시 */
+          const periodLabel = `${toShortDate(card.performancePeriodStart)} ~ ${toShortDate(card.performancePeriodEnd)}`;
 
           return (
             <div
@@ -63,16 +91,35 @@ export default function CardPerformanceGauge({ cards }: Props) {
               aria-expanded={isExpanded}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleCard(card.paymentMethodId); }}
             >
-              {/* 1행: 카드명 + 부가정보 */}
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-[13px] font-bold text-primary flex items-center gap-1.5 truncate min-w-0">
-                  <CreditCard size={14} className="text-indigo-500 shrink-0" />
-                  <span className="truncate">{card.cardName}</span>
-                </h3>
-                <span className="text-[10px] text-muted whitespace-nowrap shrink-0">{infoParts.join(' · ')}</span>
+              {/* 1행: 카드명 */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <CreditCard size={14} className="text-indigo-500 shrink-0" />
+                <h3 className="text-[13px] font-bold text-primary truncate min-w-0">{card.cardName}</h3>
               </div>
 
-              {/* 2행: 금액 */}
+              {/* 2행: 산정기간 + 결제 예정일 — 핵심 정보 */}
+              {isCredit && (
+                <div className="flex items-center justify-between gap-2 text-[10px]">
+                  <span
+                    className="flex items-center gap-0.5 text-muted whitespace-nowrap"
+                    title="실적 산정 기간"
+                  >
+                    <Calendar size={9} className="shrink-0" />
+                    {periodLabel}
+                  </span>
+                  {expectedBillingDate && (
+                    <span
+                      className="flex items-center gap-0.5 font-semibold text-indigo-600 whitespace-nowrap"
+                      title="결제 예정일"
+                    >
+                      <BillingIcon size={9} className="shrink-0" />
+                      {expectedBillingDate} 결제
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* 3행: 금액 */}
               <div className="flex items-baseline justify-end gap-1">
                 <span className="text-[22px] font-bold text-primary tabular-nums leading-none">
                   {fmt(card.currentPerformance)}
@@ -102,7 +149,10 @@ export default function CardPerformanceGauge({ cards }: Props) {
                 {achievedTiers.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {achievedTiers.map((tier) => (
-                      <span key={tier.id} className="inline-flex items-center gap-0.5 text-[10px] text-green-700 bg-green-50 rounded-full px-1.5 py-px leading-snug">
+                      <span
+                        key={tier.id}
+                        className="inline-flex items-center gap-0.5 text-[10px] text-green-700 bg-green-50 rounded-full px-1.5 py-px leading-snug"
+                      >
                         <CheckCircle size={9} /> {tier.benefitDesc || '달성'}
                       </span>
                     ))}
@@ -126,7 +176,7 @@ export default function CardPerformanceGauge({ cards }: Props) {
                   )
                 ) : (
                   <p className="text-[10px] text-muted text-center surface-soft rounded-lg px-2.5 py-1">
-                    이번 달 사용 합계
+                    {isCredit ? '이번 달 실적 합계' : '이번 달 사용 합계'}
                   </p>
                 )}
               </div>
@@ -146,17 +196,27 @@ export default function CardPerformanceGauge({ cards }: Props) {
       {expandedCard && (
         <div className="surface-card rounded-xl p-4 animate-fade-in">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <CreditCard size={16} className="text-indigo-500 shrink-0" />
-              <h3 className="text-sm font-bold text-primary truncate">{expandedCard.cardName}</h3>
-              <span className="text-[10px] text-muted whitespace-nowrap">
+            <div className="flex items-center gap-3 min-w-0 flex-wrap">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <CreditCard size={15} className="text-indigo-500 shrink-0" />
+                <h3 className="text-sm font-bold text-primary truncate">{expandedCard.cardName}</h3>
+              </div>
+              {/* 산정기간 배지 */}
+              <span className="flex items-center gap-1 text-[11px] bg-indigo-50 text-indigo-700 rounded-full px-2 py-0.5 whitespace-nowrap">
+                <Calendar size={10} />
                 {expandedCard.performancePeriodStart} ~ {expandedCard.performancePeriodEnd}
               </span>
+              {/* 결제 예정일 배지 */}
+              {expandedCard.paymentMethodType === 'CREDIT' && expandedCard.billingDay && (
+                <span className="flex items-center gap-1 text-[11px] bg-amber-50 text-amber-700 rounded-full px-2 py-0.5 whitespace-nowrap font-semibold">
+                  결제 예정: {getExpectedBillingDate(expandedCard.performancePeriodEnd, expandedCard.billingDay)}
+                </span>
+              )}
             </div>
             <button
               type="button"
               onClick={() => setExpandedCardId(null)}
-              className="text-muted hover:text-primary p-1"
+              className="text-muted hover:text-primary p-1 shrink-0"
               aria-label="상세 닫기"
             >
               <X size={16} />

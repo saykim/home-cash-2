@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import CashflowSummary from '@/components/CashflowSummary';
 import CardPerformanceGauge from '@/components/CardPerformanceGauge';
@@ -74,7 +74,23 @@ export default function HomePage() {
   const [sectionOrder, setSectionOrder] = useState<DashboardSectionId[]>(DEFAULT_DASHBOARD_SECTION_ORDER);
   const [draggingSection, setDraggingSection] = useState<DashboardSectionId | null>(null);
   const isInitialTransactionsLoadRef = useRef(true);
-  const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const now = new Date();
+  const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const [currentMonth, setCurrentMonth] = useState(todayMonth);
+
+  const moveMonth = (delta: -1 | 1) => {
+    setCurrentMonth(prev => {
+      const [y, m] = prev.split('-').map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+  };
+
+  const displayMonth = (() => {
+    const [y, m] = currentMonth.split('-').map(Number);
+    return `${y}년 ${m}월`;
+  })();
+  const isCurrentMonth = currentMonth === todayMonth;
 
   const parseApiJson = useCallback(
     async function parseApiJson<T>(response: Response): Promise<T | null> {
@@ -186,6 +202,18 @@ export default function HomePage() {
 
     init();
   }, [fetchDashboardData, fetchPaymentMethods, fetchSectionOrder, fetchTransactions]);
+
+  // 월 변경 시 필터 리셋 + 재조회
+  useEffect(() => {
+    if (isInitialTransactionsLoadRef.current) return; // 초기 로드 중엔 skip
+    setTransactionFilters(defaultTransactionFilters);
+    void Promise.all([
+      fetchDashboardData(),
+      fetchTransactions(defaultTransactionFilters, { showLoading: false }),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth]);
+
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -435,6 +463,40 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* 월 네비게이션 */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1 surface-card rounded-xl px-1 py-1">
+                <button
+                  type="button"
+                  onClick={() => moveMonth(-1)}
+                  className="p-1.5 text-secondary hover:text-primary rounded-lg hover:bg-[color:var(--bg-soft)] transition-colors"
+                  aria-label="이전 달"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-sm font-semibold text-primary px-2 min-w-[90px] text-center tabular-nums">
+                  {displayMonth}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => moveMonth(1)}
+                  className="p-1.5 text-secondary hover:text-primary rounded-lg hover:bg-[color:var(--bg-soft)] transition-colors"
+                  aria-label="다음 달"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+              {!isCurrentMonth && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentMonth(todayMonth)}
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  오늘로
+                </button>
+              )}
+            </div>
+
             <div
               className="surface-card flex p-1 rounded-xl"
               role="tablist"
@@ -449,11 +511,10 @@ export default function HomePage() {
                 aria-controls="panel-dashboard"
                 onClick={() => setActiveTab('dashboard')}
                 onKeyDown={e => onTabKeyDown(e, 'dashboard')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
-                  activeTab === 'dashboard'
-                    ? 'accent-chip shadow-sm'
-                    : 'text-secondary hover:text-primary'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${activeTab === 'dashboard'
+                  ? 'accent-chip shadow-sm'
+                  : 'text-secondary hover:text-primary'
+                  }`}
               >
                 대시보드
               </button>
@@ -465,11 +526,10 @@ export default function HomePage() {
                 aria-controls="panel-settings"
                 onClick={() => setActiveTab('settings')}
                 onKeyDown={e => onTabKeyDown(e, 'settings')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
-                  activeTab === 'settings'
-                    ? 'accent-chip shadow-sm'
-                    : 'text-secondary hover:text-primary'
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${activeTab === 'settings'
+                  ? 'accent-chip shadow-sm'
+                  : 'text-secondary hover:text-primary'
+                  }`}
               >
                 설정 (기준정보)
               </button>
