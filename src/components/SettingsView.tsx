@@ -450,27 +450,24 @@ function EditPaymentMethodForm({
     tierId: string,
     patch: Partial<Pick<BenefitTier, 'thresholdAmount' | 'benefitDesc' | 'sortOrder'>> = {},
   ) => {
-    let nextTier = null as BenefitTier | null;
-    setTiers((prev) => prev.map((tier) => {
-      if (tier.id !== tierId) {
-        return tier;
-      }
-      const mergedTier: BenefitTier = { ...tier, ...patch };
-      nextTier = mergedTier;
-      return mergedTier;
-    }));
-
-    if (!nextTier) {
+    const currentTier = tiers.find((t) => t.id === tierId);
+    if (!currentTier) {
       return;
     }
 
+    const merged: BenefitTier = { ...currentTier, ...patch };
+
+    // UI 즉시 반영
+    setTiers((prev) => prev.map((t) => (t.id === tierId ? merged : t)));
+
+    // 서버 저장
     await fetch(`/api/benefit-tiers/${tierId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        thresholdAmount: nextTier.thresholdAmount,
-        benefitDesc: nextTier.benefitDesc,
-        sortOrder: nextTier.sortOrder,
+        thresholdAmount: merged.thresholdAmount,
+        benefitDesc: merged.benefitDesc,
+        sortOrder: merged.sortOrder,
       }),
     });
   };
