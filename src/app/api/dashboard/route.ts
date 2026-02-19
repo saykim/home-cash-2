@@ -96,6 +96,28 @@ const getPerformanceWindow = (year: number, month: number, performanceStartDay: 
   };
 };
 
+/**
+ * 오늘 날짜와 카드 실적 시작일을 비교하여 getPerformanceWindow()에 넘길 기준 월을 결정.
+ * - 오늘이 startDay 미만: 이번 달 실적 기간이 아직 시작 전 → 현재 월 기준
+ * - 오늘이 startDay 이상: 이번 달 새 실적 기간이 시작됨 → 다음 달 기준
+ */
+const resolvePerformanceMonth = (
+  today: Date,
+  performanceStartDay: number,
+): { year: number; month: number } => {
+  const todayDay = today.getDate();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth() + 1;
+
+  if (todayDay < performanceStartDay) {
+    return { year: todayYear, month: todayMonth };
+  }
+  if (todayMonth === 12) {
+    return { year: todayYear + 1, month: 1 };
+  }
+  return { year: todayYear, month: todayMonth + 1 };
+};
+
 export async function GET(request: Request) {
   const unauthorized = await requireAuth();
   if (unauthorized) {
@@ -154,6 +176,9 @@ export async function GET(request: Request) {
     const previousMonth = getPreviousMonth(year, monthNumber);
     const previousMonthRange = getMonthRange(previousMonth.year, previousMonth.month);
     const monthRange = getMonthRange(year, monthNumber);
+    const nextMonthYear = monthNumber === 12 ? year + 1 : year;
+    const nextMonthNum = monthNumber === 12 ? 1 : monthNumber + 1;
+    const nextMonthRange = getMonthRange(nextMonthYear, nextMonthNum);
     const transactionRes = await client.query(
       `
       SELECT
@@ -171,7 +196,7 @@ export async function GET(request: Request) {
         AND transaction_date <= $2
       ORDER BY transaction_date DESC, created_at DESC
     `,
-      [previousMonthRange.start, monthRange.end],
+      [previousMonthRange.start, nextMonthRange.end],
     );
     const transactionRows = transactionRes.rows as PerformanceTransactionRow[];
 
@@ -186,12 +211,12 @@ export async function GET(request: Request) {
     }
 
     const cardPerformances: CardPerformance[] = methodRows.map((methodRow) => {
+      const startDay = clampDay(methodRow.performance_start_day);
       const performanceWindow = methodRow.type === "CREDIT"
-        ? getPerformanceWindow(
-          year,
-          monthNumber,
-          clampDay(methodRow.performance_start_day),
-        )
+        ? (() => {
+            const perfMonth = resolvePerformanceMonth(now, startDay);
+            return getPerformanceWindow(perfMonth.year, perfMonth.month, startDay);
+          })()
         : {
           start: monthRange.start,
           end: monthRange.end,
