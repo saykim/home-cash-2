@@ -13,6 +13,7 @@ export function toPaymentMethod(r: PaymentMethodRow): PaymentMethod {
     performanceStartDay: r.performance_start_day,
     isActive: r.is_active === 1,
     createdAt: r.created_at,
+    color: r.color ?? null,
   };
 }
 
@@ -26,7 +27,7 @@ export function toBenefitTier(r: BenefitTierRow): BenefitTier {
   };
 }
 
-export function toTransaction(r: TransactionRow & { payment_method_name?: string }): Transaction {
+export function toTransaction(r: TransactionRow & { payment_method_name?: string; billing_month_key?: string }): Transaction {
   return {
     id: r.id,
     paymentMethodId: r.payment_method_id,
@@ -40,5 +41,6 @@ export function toTransaction(r: TransactionRow & { payment_method_name?: string
     excludeFromPerformance: r.exclude_from_performance === 1,
     createdAt: r.created_at,
     paymentMethodName: r.payment_method_name ?? undefined,
+    billingMonthKey: r.billing_month_key ?? undefined,
   };
 }

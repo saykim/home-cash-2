@@ -5,6 +5,31 @@ import { toTransaction } from "@/lib/mappers";
 import type { TransactionRow } from "@/types";
 import { v4 as uuid } from "uuid";
 
+/** 거래일이 어느 청구월(YYYY-MM)에 속하는지 계산 */
+function calcBillingMonthKey(transactionDate: string, startDay: number): string {
+  const txDay = parseInt(transactionDate.slice(8, 10), 10);
+  const txYearMonth = transactionDate.slice(0, 7); // YYYY-MM
+
+  if (startDay <= 1) return txYearMonth;
+
+  // startDay=15인 경우: 거래일 >= 15 → 다음 달 청구, 거래일 < 15 → 이번 달 청구
+  if (txDay >= startDay) {
+    const [y, m] = txYearMonth.split('-').map(Number);
+    const nextM = m === 12 ? 1 : m + 1;
+    const nextY = m === 12 ? y + 1 : y;
+    return `${nextY}-${String(nextM).padStart(2, '0')}`;
+  }
+  return txYearMonth;
+}
+
+/** 전월의 특정 일자를 YYYY-MM-DD 형식으로 반환 */
+function getPrevMonthDateKey(month: string, day: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const prevM = m === 1 ? 12 : m - 1;
+  const prevY = m === 1 ? y - 1 : y;
+  return `${prevY}-${String(prevM).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -20,6 +45,24 @@ export async function GET(request: Request) {
   const category = searchParams.get("category");
   const paymentMethodId = searchParams.get("paymentMethodId");
   const performance = searchParams.get("performance") ?? "all";
+  const billingMode = searchParams.get("billingMode") === "true";
+  const paymentMethodsJson = searchParams.get("paymentMethodsJson");
+
+  // billingMode 시 신용카드 정보 파싱
+  type CreditMethodInfo = { id: string; performanceStartDay: number };
+  let creditMethods: CreditMethodInfo[] = [];
+  if (billingMode && paymentMethodsJson) {
+    try {
+      const parsed = JSON.parse(paymentMethodsJson) as unknown;
+      if (Array.isArray(parsed)) {
+        creditMethods = (parsed as CreditMethodInfo[]).filter(
+          (item) => typeof item.id === 'string' && typeof item.performanceStartDay === 'number'
+        );
+      }
+    } catch {
+      // 파싱 실패 시 creditMethods는 빈 배열
+    }
+  }
 
   const pool = await getDb();
   const client = await pool.connect();
@@ -30,8 +73,21 @@ export async function GET(request: Request) {
     let paramIndex = 1;
 
     if (month) {
-      where.push(`t.transaction_date LIKE $${paramIndex++} || '%'`);
-      params.push(month);
+      if (billingMode && creditMethods.some((pm) => pm.performanceStartDay > 1)) {
+        // 청구 기준: 전월 startDay일부터 당월 말일까지 범위 확장
+        const minStartDay = Math.min(...creditMethods.map((pm) => pm.performanceStartDay));
+        const dateStart = getPrevMonthDateKey(month, minStartDay);
+        const [y, m] = month.split('-').map(Number);
+        const lastDay = new Date(y, m, 0).getDate(); // 당월 말일
+        const dateEnd = `${month}-${String(lastDay).padStart(2, '0')}`;
+        where.push(`t.transaction_date >= $${paramIndex++}`);
+        params.push(dateStart);
+        where.push(`t.transaction_date <= $${paramIndex++}`);
+        params.push(dateEnd);
+      } else {
+        where.push(`t.transaction_date LIKE $${paramIndex++} || '%'`);
+        params.push(month);
+      }
     }
 
     if (search) {
@@ -74,7 +130,17 @@ export async function GET(request: Request) {
     const rows = result.rows as (TransactionRow & {
       payment_method_name?: string;
     })[];
-    return NextResponse.json(rows.map(toTransaction));
+
+    const mappedRows = rows.map((row) => {
+      if (!billingMode) return toTransaction(row);
+      const pm = creditMethods.find((m) => m.id === row.payment_method_id);
+      const billingMonthKey = pm
+        ? calcBillingMonthKey(row.transaction_date, pm.performanceStartDay)
+        : row.transaction_date.slice(0, 7);
+      return toTransaction({ ...row, billing_month_key: billingMonthKey });
+    });
+
+    return NextResponse.json(mappedRows);
   } finally {
     client.release();
   }

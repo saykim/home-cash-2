@@ -1,11 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Transaction } from "@/types";
+import type { Transaction, PaymentMethod } from "@/types";
 
 interface Props {
   transactions: Transaction[];
   month: string;
+  paymentMethods: PaymentMethod[];
+  onMethodColorChange?: (methodName: string, color: string | null) => Promise<void>;
+  graphMode: 'usage' | 'billing';
+  onGraphModeChange: (mode: 'usage' | 'billing') => void;
 }
 
 interface Series {
@@ -61,10 +65,12 @@ function TrendChart({
   title,
   months,
   series,
+  onMethodColorChange,
 }: {
   title: string;
   months: string[];
   series: Series[];
+  onMethodColorChange?: (methodName: string, color: string | null) => Promise<void>;
 }) {
   const [hoveredBar, setHoveredBar] = useState<BarSlot | null>(null);
 
@@ -280,10 +286,25 @@ function TrendChart({
                   className="flex items-center justify-between rounded-md surface-card px-2 py-1.5"
                 >
                   <span className="inline-flex items-center gap-2 text-secondary min-w-0">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
+                    {item.kind === "expense" && onMethodColorChange ? (
+                      <label className="relative cursor-pointer shrink-0" title="색상 변경">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full block hover:ring-2 hover:ring-offset-1 transition-all"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <input
+                          type="color"
+                          className="sr-only"
+                          value={item.color}
+                          onChange={(e) => void onMethodColorChange(item.label, e.target.value)}
+                        />
+                      </label>
+                    ) : (
+                      <span
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: item.color }}
+                      />
+                    )}
                     <span className="truncate">{item.label}</span>
                   </span>
                   <span className="font-semibold text-primary tabular-nums">
@@ -306,13 +327,27 @@ function TrendChart({
 export default function MonthlyCumulativeTrends({
   transactions,
   month,
+  paymentMethods,
+  onMethodColorChange,
+  graphMode,
+  onGraphModeChange,
 }: Props) {
+  const colorByMethodName = useMemo(() => {
+    const map = new Map<string, string>();
+    paymentMethods.forEach((pm) => {
+      if (pm.color) map.set(pm.name.trim(), pm.color);
+    });
+    return map;
+  }, [paymentMethods]);
+
   const { combinedSeries, monthLabels } = useMemo(() => {
     const incomeByMonth: Record<string, number> = {};
     const expenseByMonthByMethod: Record<string, Record<string, number>> = {};
 
     transactions.forEach((tx) => {
-      const monthKey = tx.transactionDate.slice(0, 7);
+      const monthKey = graphMode === 'billing' && tx.billingMonthKey
+        ? tx.billingMonthKey
+        : tx.transactionDate.slice(0, 7);
       if (!/^(\d{4})-(\d{2})$/.test(monthKey)) {
         return;
       }
@@ -349,7 +384,7 @@ export default function MonthlyCumulativeTrends({
       .map(
         ([label, valuesByMonth], index): Series => ({
           label,
-          color: methodPalette[index % methodPalette.length],
+          color: colorByMethodName.get(label) ?? methodPalette[index % methodPalette.length],
           values: accumulate(
             monthLabels.map((monthKey) => valuesByMonth[monthKey] ?? 0),
           ),
@@ -375,7 +410,7 @@ export default function MonthlyCumulativeTrends({
       combinedSeries: [...incomeSeries, ...expenseSeries],
       monthLabels,
     };
-  }, [transactions]);
+  }, [transactions, colorByMethodName, graphMode]);
 
   const chartRange =
     monthLabels.length > 0
@@ -389,12 +424,38 @@ export default function MonthlyCumulativeTrends({
     >
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
         <h2 className="text-lg font-bold text-primary">월별 누적 변화 추이</h2>
-        <p className="text-xs text-muted">{chartRange} (월 단위)</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-xs text-muted">{chartRange} (월 단위)</p>
+          <div
+            className="flex items-center rounded-lg overflow-hidden border text-[11px] font-semibold"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <button
+              type="button"
+              onClick={() => onGraphModeChange('usage')}
+              className={`px-2.5 py-1 transition-colors ${
+                graphMode === 'usage' ? 'bg-indigo-600 text-white' : 'text-muted hover:text-primary'
+              }`}
+            >
+              사용 기준
+            </button>
+            <button
+              type="button"
+              onClick={() => onGraphModeChange('billing')}
+              className={`px-2.5 py-1 transition-colors ${
+                graphMode === 'billing' ? 'bg-indigo-600 text-white' : 'text-muted hover:text-primary'
+              }`}
+            >
+              청구 기준
+            </button>
+          </div>
+        </div>
       </div>
       <TrendChart
         title="수입/지출 누적 추이 (동시 비교)"
         series={combinedSeries}
         months={monthLabels}
+        onMethodColorChange={onMethodColorChange}
       />
     </section>
   );

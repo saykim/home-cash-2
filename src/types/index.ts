@@ -9,6 +9,7 @@ export interface PaymentMethodRow {
   performance_start_day: number;
   is_active: number; // SQLite boolean: 0 | 1
   created_at: string;
+  color: string | null;
 }
 
 /** API / UI shape */
@@ -20,6 +21,7 @@ export interface PaymentMethod {
   performanceStartDay: number;
   isActive: boolean;
   createdAt: string;
+  color: string | null;
 }
 
 /** DB row for benefit_tiers */
@@ -70,6 +72,8 @@ export interface Transaction {
   createdAt: string;
   /** Joined field — payment method name */
   paymentMethodName?: string;
+  /** 청구 기준 모드에서만 포함. "YYYY-MM" 포맷 */
+  billingMonthKey?: string;
 }
 
 export interface CashflowSummary {

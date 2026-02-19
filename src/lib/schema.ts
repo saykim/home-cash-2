@@ -40,4 +40,9 @@ export async function initSchema(client: PoolClient): Promise<void> {
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
   `);
+
+  await client.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS color TEXT DEFAULT NULL;
+  `);
 }

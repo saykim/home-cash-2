@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, type, billingDay, performanceStartDay } = body;
+  const { name, type, billingDay, performanceStartDay, color } = body;
 
   if (!name || !type) {
     return NextResponse.json(
@@ -63,10 +63,10 @@ export async function POST(request: Request) {
   try {
     await client.query(
       `
-      INSERT INTO payment_methods (id, name, type, billing_day, performance_start_day)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO payment_methods (id, name, type, billing_day, performance_start_day, color)
+      VALUES ($1, $2, $3, $4, $5, $6)
     `,
-      [id, name, type, billingDay ?? null, performanceStartDay ?? 1],
+      [id, name, type, billingDay ?? null, performanceStartDay ?? 1, color ?? null],
     );
 
     const res = await client.query(

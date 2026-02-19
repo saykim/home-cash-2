@@ -134,6 +134,51 @@ function DayInput({
   );
 }
 
+/* ─── ColorPicker ──────────────────────────────────── */
+
+const PRESET_COLORS = [
+  "#4f46e5", "#0284c7", "#16a34a", "#d97706", "#dc2626",
+  "#9333ea", "#0f766e", "#ea580c", "#475569", "#3b82f6",
+  "#8b5cf6", "#ec4899", "#10b981", "#f59e0b", "#6366f1",
+];
+
+function ColorPicker({ value, onChange }: { value: string | null; onChange: (c: string | null) => void }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {PRESET_COLORS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => onChange(preset)}
+            className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
+            style={{ backgroundColor: preset, borderColor: value === preset ? 'var(--foreground)' : 'transparent' }}
+            aria-label={`색상 ${preset} 선택`}
+          />
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={value ?? "#4f46e5"}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-8 h-8 rounded cursor-pointer border"
+          style={{ borderColor: 'var(--border)' }}
+          aria-label="직접 색상 선택"
+        />
+        <span className="text-xs font-mono text-secondary">{value ?? '자동'}</span>
+        {value ? (
+          <button type="button" onClick={() => onChange(null)} className="text-[11px] text-muted hover:text-primary">
+            초기화
+          </button>
+        ) : (
+          <span className="text-[11px] text-muted italic">팔레트 자동 할당</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── 메인 SettingsView ─────────────────────────────── */
 
 export default function SettingsView({ paymentMethods, onRefresh }: Props) {
@@ -238,6 +283,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
     getSuggestedPerformanceStartDay(DEFAULT_BILLING_DAY),
   );
   const [isManual, setIsManual] = useState(false);
+  const [color, setColor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const suggested = getSuggestedPerformanceStartDay(billingDay);
@@ -268,6 +314,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
         type,
         billingDay: type === 'CREDIT' ? billingDay : null,
         performanceStartDay: type === 'CREDIT' ? performanceStartDay : DEFAULT_PERFORMANCE_START_DAY,
+        color,
       }),
     });
     setSaving(false);
@@ -339,6 +386,15 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
           </div>
         )}
 
+        {/* 그래프 색상 */}
+        <div className="py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          <FieldLabel>그래프 색상</FieldLabel>
+          <ColorPicker value={color} onChange={setColor} />
+          <p className="text-[10px] text-muted mt-1.5">
+            월별 누적 추이 그래프에서 이 결제 수단의 색상으로 표시됩니다.
+          </p>
+        </div>
+
         <button
           type="button"
           onClick={handleSave}
@@ -376,6 +432,7 @@ function EditPaymentMethodForm({
     ),
   );
   const [isManual, setIsManual] = useState(false);
+  const [color, setColor] = useState<string | null>(method.color ?? null);
   const [saving, setSaving] = useState(false);
   const [tiers, setTiers] = useState(method.benefitTiers);
 
@@ -390,6 +447,7 @@ function EditPaymentMethodForm({
       ),
     );
     setIsManual(false);
+    setColor(method.color ?? null);
     setTiers(method.benefitTiers);
   }, [method]);
 
@@ -416,6 +474,7 @@ function EditPaymentMethodForm({
         type,
         billingDay: type === 'CREDIT' ? billingDay : null,
         performanceStartDay: type === 'CREDIT' ? performanceStartDay : DEFAULT_PERFORMANCE_START_DAY,
+        color,
       }),
     });
     setSaving(false);
@@ -547,6 +606,15 @@ function EditPaymentMethodForm({
             </div>
           </div>
         )}
+
+        {/* 그래프 색상 */}
+        <div className="py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          <FieldLabel>그래프 색상</FieldLabel>
+          <ColorPicker value={color} onChange={setColor} />
+          <p className="text-[10px] text-muted mt-1.5">
+            월별 누적 추이 그래프에서 이 결제 수단의 색상으로 표시됩니다.
+          </p>
+        </div>
 
         {/* 혜택 구간 (신용카드만) */}
         {type === 'CREDIT' && (

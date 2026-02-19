@@ -30,10 +30,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const type = body.type ?? existing.type;
     const billingDay = body.billingDay !== undefined ? body.billingDay : existing.billing_day;
     const performanceStartDay = body.performanceStartDay ?? existing.performance_start_day;
+    const color = body.color !== undefined ? body.color : existing.color;
 
     await client.query(
-      `UPDATE payment_methods SET name = $1, type = $2, billing_day = $3, performance_start_day = $4 WHERE id = $5`,
-      [name, type, billingDay, performanceStartDay, params.id]
+      `UPDATE payment_methods SET name = $1, type = $2, billing_day = $3, performance_start_day = $4, color = $5 WHERE id = $6`,
+      [name, type, billingDay, performanceStartDay, color, params.id]
     );
 
     const updatedRes = await client.query(

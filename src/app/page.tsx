@@ -81,6 +81,7 @@ export default function HomePage() {
   const [transactionFilters, setTransactionFilters] = useState<TransactionFilters>(defaultTransactionFilters);
   const [sectionOrder, setSectionOrder] = useState<DashboardSectionId[]>(DEFAULT_DASHBOARD_SECTION_ORDER);
   const [draggingSection, setDraggingSection] = useState<DashboardSectionId | null>(null);
+  const [graphMode, setGraphMode] = useState<'usage' | 'billing'>('usage');
   const isInitialTransactionsLoadRef = useRef(true);
   const now = new Date();
   const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -149,12 +150,24 @@ export default function HomePage() {
 
       const txParams = new URLSearchParams({
         month: currentMonth,
-        limit: '200',
+        limit: '300',
         search: filters.search,
         category: filters.category,
         paymentMethodId: filters.paymentMethodId,
         performance: filters.performance,
+        billingMode: graphMode === 'billing' ? 'true' : 'false',
       });
+
+      if (graphMode === 'billing' && paymentMethods.length > 0) {
+        txParams.set(
+          'paymentMethodsJson',
+          JSON.stringify(
+            paymentMethods
+              .filter((pm) => pm.type === 'CREDIT')
+              .map((pm) => ({ id: pm.id, performanceStartDay: pm.performanceStartDay })),
+          ),
+        );
+      }
 
       const txRes = await fetch(`/api/transactions?${txParams.toString()}`);
       const txns = await parseApiJson<Transaction[]>(txRes);
@@ -171,7 +184,7 @@ export default function HomePage() {
         setTransactionsLoading(false);
       }
     },
-    [currentMonth, parseApiJson],
+    [currentMonth, parseApiJson, graphMode, paymentMethods],
   );
 
   const persistSectionOrder = useCallback(async (nextOrder: DashboardSectionId[]) => {
@@ -208,8 +221,10 @@ export default function HomePage() {
       setLoading(false);
     };
 
-    init();
-  }, [fetchDashboardData, fetchPaymentMethods, fetchSectionOrder, fetchTransactions]);
+    void init();
+    // Initial bootstrap only: month/graphMode/filter updates are handled by dedicated effects below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 월 변경 시 필터 리셋 + 재조회
   useEffect(() => {
@@ -221,6 +236,13 @@ export default function HomePage() {
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonth]);
+
+  // graphMode 변경 시 재조회
+  useEffect(() => {
+    if (isInitialTransactionsLoadRef.current) return;
+    void fetchTransactions(transactionFilters, { showLoading: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graphMode]);
 
 
   useEffect(() => {
@@ -410,6 +432,19 @@ export default function HomePage() {
     ),
   );
 
+  const handleMethodColorChange = useCallback(async (methodName: string, color: string | null) => {
+    const pm = paymentMethods.find((m) => m.name === methodName);
+    if (!pm) return;
+    await fetch(`/api/payment-methods/${pm.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ color }),
+    });
+    setPaymentMethods((prev) =>
+      prev.map((m) => (m.id === pm.id ? { ...m, color } : m))
+    );
+  }, [paymentMethods]);
+
   const handleSectionDrop = (targetSection: DashboardSectionId) => {
     if (!draggingSection || draggingSection === targetSection) {
       return;
@@ -437,7 +472,16 @@ export default function HomePage() {
     },
     'monthly-trends': {
       title: '월별 누적 변화 추이',
-      node: <MonthlyCumulativeTrends transactions={transactions} month={currentMonth} />,
+      node: (
+        <MonthlyCumulativeTrends
+          transactions={transactions}
+          month={currentMonth}
+          paymentMethods={paymentMethods}
+          onMethodColorChange={handleMethodColorChange}
+          graphMode={graphMode}
+          onGraphModeChange={setGraphMode}
+        />
+      ),
     },
     'recent-transactions': {
       title: '최근 내역 요약',
