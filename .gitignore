@@ -42,3 +42,7 @@ data/
 # local references/drafts
 ref/
 .sisyphus/drafts/
+
+# dev document
+mobile_design.md
+mobile_design_codex.md
