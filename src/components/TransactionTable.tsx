@@ -255,7 +255,70 @@ export default function TransactionTable({
         ) : null}
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="md:hidden space-y-2">
+        {transactions.map(tx => (
+          <article
+            key={tx.id}
+            className="rounded-xl border p-3 surface-card"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs text-muted">{tx.transactionDate}</p>
+                {tx.amount < 0 && (() => {
+                  const label = getBillingLabel(tx);
+                  return label ? (
+                    <p className="text-[10px] text-indigo-500 font-medium mt-0.5">{label}</p>
+                  ) : null;
+                })()}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {onDelete ? (
+                  <button
+                    type="button"
+                    aria-label={`거래 삭제: ${tx.memo || tx.category || tx.transactionDate}`}
+                    onClick={() => onDelete(tx.id)}
+                    className="text-muted hover:text-red-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--danger)]"
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.amount > 0 ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'surface-soft text-secondary'}`}>
+                {tx.category ?? '-'}
+              </span>
+              <span className={`text-sm font-bold tabular-nums whitespace-nowrap ${tx.amount > 0 ? 'text-blue-600' : 'text-primary'}`}>
+                {formatMoney(tx.amount, true)}
+              </span>
+            </div>
+
+            <div className="mt-2 min-w-0">
+              <p className="text-sm font-medium text-primary truncate">{tx.memo ?? '-'}</p>
+              {tx.paymentMethodName ? (
+                <p className="text-xs text-muted truncate">{tx.paymentMethodName}</p>
+              ) : null}
+            </div>
+
+            <div className="mt-2 text-xs">
+              {tx.excludeFromPerformance ? (
+                <span className="text-muted line-through">실적 제외</span>
+              ) : (
+                <span className="text-green-600">실적 포함</span>
+              )}
+            </div>
+          </article>
+        ))}
+        {transactions.length === 0 ? (
+          <div className="px-4 py-8 text-center text-muted text-sm border rounded-xl" style={{ borderColor: 'var(--border)' }}>
+            등록된 내역이 없습니다.
+          </div>
+        ) : null}
+      </div>
+
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm text-left text-secondary">
           <caption className="sr-only">거래 내역표. 총 {rowCount}건</caption>
           <thead className="text-xs uppercase surface-soft">

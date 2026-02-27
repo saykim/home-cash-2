@@ -636,6 +636,7 @@ export default function HomePage() {
               )}
               {sectionOrder.map(sectionId => {
                 const section = dashboardSectionMap[sectionId];
+                const hideOnMobile = sectionId === 'monthly-trends';
                 return (
                   <section
                     key={sectionId}
@@ -650,7 +651,7 @@ export default function HomePage() {
                       setDraggingSection(null);
                     }}
                     onDragEnd={() => setDraggingSection(null)}
-                    className={`surface-card rounded-2xl p-4 space-y-4 ${draggingSection === sectionId ? 'ring-2 ring-[color:var(--accent)]' : ''}`}
+                    className={`surface-card rounded-2xl p-4 space-y-4 ${hideOnMobile ? 'hidden md:block' : ''} ${draggingSection === sectionId ? 'ring-2 ring-[color:var(--accent)]' : ''}`}
                   >
                     <div className="mb-2 text-xs text-muted">
                       <span>{section.title}</span>
