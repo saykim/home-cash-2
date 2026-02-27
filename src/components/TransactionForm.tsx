@@ -109,7 +109,7 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
     pendingCaretDigitIndexRef.current = null;
   }, [form.amount]);
 
-      if (!open) {
+  if (!open) {
     return (
       <button
         type="button"
@@ -122,49 +122,47 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4">
       <form
         onSubmit={handleSubmit}
-        className="surface-strong rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 animate-slide-up"
+        className="surface-strong rounded-2xl shadow-xl w-full max-w-md p-4 sm:p-6 space-y-4 animate-slide-up max-h-[85dvh] overflow-y-auto"
       >
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-primary">내역 입력</h3>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="text-muted hover:text-primary"
-          aria-label="내역 입력 창 닫기"
-        >
-          <X size={20} aria-hidden="true" />
-        </button>
-      </div>
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-bold text-primary">내역 입력</h3>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="text-muted hover:text-primary"
+            aria-label="내역 입력 창 닫기"
+          >
+            <X size={20} aria-hidden="true" />
+          </button>
+        </div>
 
-      <div className="flex gap-2" role="radiogroup" aria-label="거래 유형 선택">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={form.isExpense}
-          onClick={() => setForm(f => ({ ...f, isExpense: true }))}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-            form.isExpense ? 'danger-chip' : 'surface-soft text-secondary'
-          }`}
+        <div className="flex gap-2" role="radiogroup" aria-label="거래 유형 선택">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={form.isExpense}
+            onClick={() => setForm(f => ({ ...f, isExpense: true }))}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${form.isExpense ? 'danger-chip' : 'surface-soft text-secondary'
+              }`}
           >
             지출
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={!form.isExpense}
-          onClick={() => setForm(f => ({ ...f, isExpense: false }))}
-          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-            !form.isExpense ? 'accent-chip' : 'surface-soft text-secondary'
-          }`}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!form.isExpense}
+            onClick={() => setForm(f => ({ ...f, isExpense: false }))}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${!form.isExpense ? 'accent-chip' : 'surface-soft text-secondary'
+              }`}
           >
             수입
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-date">
               날짜
@@ -198,7 +196,7 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-category">
               분류
@@ -232,21 +230,21 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
           </div>
         </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-memo">
-              메모
-            </label>
-            <input
-              id="transaction-memo"
-              name="memo"
-              autoComplete="off"
-              type="text"
-              value={form.memo}
-              onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
-              placeholder="예: 이마트 장보기…"
-              className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            />
-          </div>
+        <div>
+          <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-memo">
+            메모
+          </label>
+          <input
+            id="transaction-memo"
+            name="memo"
+            autoComplete="off"
+            type="text"
+            value={form.memo}
+            onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
+            placeholder="예: 이마트 장보기…"
+            className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+          />
+        </div>
 
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm text-secondary">
@@ -269,15 +267,15 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
           </label>
         </div>
 
-          <button
-            type="submit"
-            name="submitTransaction"
-            disabled={submitting || !form.amount}
-            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {submitting ? '저장 중…' : '저장'}
-          </button>
-        </form>
-      </div>
+        <button
+          type="submit"
+          name="submitTransaction"
+          disabled={submitting || !form.amount}
+          className="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {submitting ? '저장 중…' : '저장'}
+        </button>
+      </form>
+    </div>
   );
 }

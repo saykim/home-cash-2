@@ -222,19 +222,19 @@ export default function TransactionTable({
       <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-2">
         <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: 'var(--border)', background: 'var(--bg-soft)' }}>
           <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{currentMonthLabel} 수입</p>
-          <p className="text-sm font-bold text-blue-600 tabular-nums">+{moneyFormatter.format(income)}원</p>
+          <p className="text-xs sm:text-sm font-bold text-blue-600 tabular-nums truncate">+{moneyFormatter.format(income)}원</p>
         </div>
         <div className="rounded-xl px-3 py-2.5 border" style={{ borderColor: 'var(--border)', background: 'var(--bg-soft)' }}>
           <p className="text-[10px] font-semibold text-muted uppercase tracking-wide mb-0.5">{currentMonthLabel} 지출</p>
-          <p className="text-sm font-bold text-primary tabular-nums">-{moneyFormatter.format(expense)}원</p>
+          <p className="text-xs sm:text-sm font-bold text-primary tabular-nums truncate">-{moneyFormatter.format(expense)}원</p>
         </div>
         <div className="rounded-xl px-3 py-2.5 border border-amber-200 bg-amber-50 dark:bg-amber-950/20">
           <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-0.5">{billingSummary?.currentMonthLabel ?? `${currentMonthLabel} 결제`}</p>
-          <p className="text-sm font-bold text-amber-700 tabular-nums">{moneyFormatter.format(billingSummary?.currentMonth ?? 0)}원</p>
+          <p className="text-xs sm:text-sm font-bold text-amber-700 tabular-nums truncate">{moneyFormatter.format(billingSummary?.currentMonth ?? 0)}원</p>
         </div>
         <div className="rounded-xl px-3 py-2.5 border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20">
           <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wide mb-0.5">{billingSummary?.nextMonthLabel ?? `${nextMonthLabel} 결제 예정`}</p>
-          <p className="text-sm font-bold text-indigo-700 tabular-nums">{moneyFormatter.format(billingSummary?.nextMonth ?? 0)}원</p>
+          <p className="text-xs sm:text-sm font-bold text-indigo-700 tabular-nums truncate">{moneyFormatter.format(billingSummary?.nextMonth ?? 0)}원</p>
         </div>
       </div>
 
@@ -260,18 +260,18 @@ export default function TransactionTable({
           <caption className="sr-only">거래 내역표. 총 {rowCount}건</caption>
           <thead className="text-xs uppercase surface-soft">
             <tr>
-              <th scope="col" className="px-4 py-3">사용일</th>
-              <th scope="col" className="px-4 py-3">구분</th>
-              <th scope="col" className="px-4 py-3">내역</th>
-              <th scope="col" className="px-4 py-3 text-right">금액</th>
-              <th scope="col" className="px-4 py-3 text-center">실적</th>
-              <th scope="col" className="px-4 py-3 text-center w-10">삭제</th>
+              <th scope="col" className="px-2 sm:px-4 py-3">사용일</th>
+              <th scope="col" className="px-2 sm:px-4 py-3">구분</th>
+              <th scope="col" className="px-2 sm:px-4 py-3">내역</th>
+              <th scope="col" className="px-2 sm:px-4 py-3 text-right">금액</th>
+              <th scope="col" className="px-2 sm:px-4 py-3 text-center">실적</th>
+              <th scope="col" className="px-2 sm:px-4 py-3 text-center w-10">삭제</th>
             </tr>
           </thead>
           <tbody>
             {transactions.map(tx => (
               <tr key={tx.id} className="table-row-hover border-b" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
                   <span>{tx.transactionDate}</span>
                   {tx.amount < 0 && (() => {
                     const label = getBillingLabel(tx);
@@ -280,30 +280,30 @@ export default function TransactionTable({
                     ) : null;
                   })()}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-2 sm:px-4 py-3">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${tx.amount > 0 ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300' : 'surface-soft text-secondary'
                     }`}>
                     {tx.category ?? '-'}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium text-primary">
-                  {tx.memo ?? '-'}
+                <td className="px-2 sm:px-4 py-3 font-medium text-primary max-w-[8rem] overflow-hidden">
+                  <div className="truncate">{tx.memo ?? '-'}</div>
                   {tx.paymentMethodName && (
-                    <span className="block text-xs text-muted font-normal">{tx.paymentMethodName}</span>
+                    <span className="block text-xs text-muted font-normal truncate">{tx.paymentMethodName}</span>
                   )}
                 </td>
-                <td className={`px-4 py-3 text-right font-bold whitespace-nowrap ${tx.amount > 0 ? 'text-blue-600' : 'text-primary'
+                <td className={`px-2 sm:px-4 py-3 text-right font-bold whitespace-nowrap ${tx.amount > 0 ? 'text-blue-600' : 'text-primary'
                   }`}>
                   <span className="tabular-nums">{formatMoney(tx.amount, true)}</span>
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-2 sm:px-4 py-3 text-center">
                   {tx.excludeFromPerformance ? (
                     <span className="text-xs text-muted line-through">제외</span>
                   ) : (
                     <span className="text-xs text-green-600">포함</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-2 sm:px-4 py-3 text-center">
                   {onDelete && (
                     <button
                       type="button"

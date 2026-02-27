@@ -107,7 +107,7 @@ function DayInput({
       <button
         type="button"
         onClick={() => step(-1)}
-        className="px-2.5 py-2 text-muted hover:text-primary hover:bg-[color:var(--bg-soft)] transition-colors"
+        className="px-3 py-3 text-muted hover:text-primary hover:bg-[color:var(--bg-soft)] transition-colors"
         aria-label={`${id} 감소`}
       >
         <ChevronDown size={14} />
@@ -125,7 +125,7 @@ function DayInput({
       <button
         type="button"
         onClick={() => step(1)}
-        className="px-2.5 py-2 text-muted hover:text-primary hover:bg-[color:var(--bg-soft)] transition-colors"
+        className="px-3 py-3 text-muted hover:text-primary hover:bg-[color:var(--bg-soft)] transition-colors"
         aria-label={`${id} 증가`}
       >
         <ChevronUp size={14} />
@@ -333,7 +333,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
 
       <div className="p-5 space-y-5">
         {/* 이름 + 유형 */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <FieldLabel>이름 (별칭)</FieldLabel>
             <InputBase
@@ -357,7 +357,7 @@ function AddPaymentMethodForm({ onCreated, onCancel }: { onCreated: () => void; 
 
         {/* 신용카드 전용 날짜 */}
         {type === 'CREDIT' && (
-          <div className="grid grid-cols-2 gap-4 py-4 border-t border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 border-t border-b" style={{ borderColor: 'var(--border)' }}>
             <div>
               <FieldLabel>결제일</FieldLabel>
               <DayInput id="add-billing-day" value={billingDay} onChange={handleBillingDayChange} />
@@ -561,7 +561,7 @@ function EditPaymentMethodForm({
 
       <div className="p-5 space-y-5">
         {/* 이름 + 유형 */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <FieldLabel>이름 (별칭)</FieldLabel>
             <InputBase id="edit-name" type="text" value={name} onChange={(e) => setName(e.target.value)} />
@@ -578,7 +578,7 @@ function EditPaymentMethodForm({
 
         {/* 신용카드 전용: 결제일 + 산정일 */}
         {type === 'CREDIT' && (
-          <div className="grid grid-cols-2 gap-4 py-4 border-t border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 border-t border-b" style={{ borderColor: 'var(--border)' }}>
             <div>
               <FieldLabel>결제일</FieldLabel>
               <DayInput id="edit-billing-day" value={billingDay} onChange={handleBillingDayChange} />

@@ -85,7 +85,7 @@ export default function CashflowSummary({ summary }: Props) {
             <span className="flex items-center justify-center gap-2 text-secondary text-sm mb-1">
               <TrendingUp size={16} className="text-blue-500" /> 수입
             </span>
-            <p className="text-2xl font-bold text-blue-600">
+            <p className="text-xl sm:text-2xl font-bold text-blue-600">
               {summary.income.toLocaleString()}
             </p>
           </div>
@@ -93,7 +93,7 @@ export default function CashflowSummary({ summary }: Props) {
             <span className="flex items-center justify-center gap-2 text-secondary text-sm mb-1">
               <TrendingDown size={16} className="text-red-500" /> 지출
             </span>
-            <p className="text-2xl font-bold text-red-600">
+            <p className="text-xl sm:text-2xl font-bold text-red-600">
               {summary.expense.toLocaleString()}
             </p>
           </div>
@@ -101,14 +101,14 @@ export default function CashflowSummary({ summary }: Props) {
             <span className="flex items-center justify-center gap-2 text-secondary text-sm mb-1">
               <Wallet size={16} className={isDeficit ? 'text-red-500' : 'text-green-500'} /> 잔액
             </span>
-            <p className={`text-2xl font-bold ${isDeficit ? 'text-red-500' : 'text-green-600'}`}>
+            <p className={`text-xl sm:text-2xl font-bold ${isDeficit ? 'text-red-500' : 'text-green-600'}`}>
               {summary.balance > 0 ? '+' : ''}{summary.balance.toLocaleString()}
             </p>
           </div>
         </div>
 
         {/* 알림 행 + 가이드 버튼 */}
-        <div className="mt-6 flex items-center gap-3">
+        <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className={`flex-1 p-3 rounded-xl flex items-start gap-3 text-sm ${isDeficit ? 'danger-chip' : 'accent-chip'
             }`}>
             <AlertCircle size={18} className="shrink-0 mt-0.5" />
@@ -121,7 +121,7 @@ export default function CashflowSummary({ summary }: Props) {
           <button
             type="button"
             onClick={() => setShowGuide(true)}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold surface-soft text-secondary hover:text-primary hover:shadow-sm transition-all border"
+            className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold surface-soft text-secondary hover:text-primary hover:shadow-sm transition-all border"
             style={{ borderColor: 'var(--border)' }}
             aria-label="기능 가이드 열기"
           >
@@ -143,7 +143,7 @@ export default function CashflowSummary({ summary }: Props) {
             onClick={e => e.stopPropagation()}
           >
             {/* 헤더 */}
-            <div className="sticky top-0 surface-card flex items-center justify-between px-6 py-4 border-b z-10" style={{ borderColor: 'var(--border)' }}>
+            <div className="sticky top-0 surface-card flex items-center justify-between px-4 sm:px-6 py-4 border-b z-10" style={{ borderColor: 'var(--border)' }}>
               <div>
                 <h2 className="text-lg font-bold text-primary">🏠 우리집 가계부 사용 가이드</h2>
                 <p className="text-xs text-muted mt-0.5">급여로 카드 결제가 충분한지 한눈에 파악하는 스마트 가계부</p>
@@ -159,7 +159,7 @@ export default function CashflowSummary({ summary }: Props) {
             </div>
 
             {/* 콘텐츠 */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               {GUIDE_SECTIONS.map(section => (
                 <div
                   key={section.title}

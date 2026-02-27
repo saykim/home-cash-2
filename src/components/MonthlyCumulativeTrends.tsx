@@ -104,86 +104,86 @@ function TrendChart({
   const bars: (BarSlot | null)[] =
     hasData && monthCount > 0
       ? (() => {
-          const monthCellWidth = drawableWidth / monthCount;
-          const groupWidth = Math.max(0.6, monthCellWidth * 0.72);
-          const barWidth = Math.max(0.6, Math.min(2.8, groupWidth * 0.42));
-          const barGap = Math.max(0, barWidth * 0.18);
-          const hasBothSeries =
-            incomeSeries.length > 0 && expenseSeries.length > 0;
-          const centerShift = hasBothSeries ? (barWidth + barGap) / 2 : 0;
-          const centerXForMonth = (monthIndex: number) =>
-            monthCount === 1
-              ? padLeft + drawableWidth / 2
-              : padLeft + (monthIndex / (monthCount - 1)) * drawableWidth;
+        const monthCellWidth = drawableWidth / monthCount;
+        const groupWidth = Math.max(0.6, monthCellWidth * 0.72);
+        const barWidth = Math.max(0.6, Math.min(2.8, groupWidth * 0.42));
+        const barGap = Math.max(0, barWidth * 0.18);
+        const hasBothSeries =
+          incomeSeries.length > 0 && expenseSeries.length > 0;
+        const centerShift = hasBothSeries ? (barWidth + barGap) / 2 : 0;
+        const centerXForMonth = (monthIndex: number) =>
+          monthCount === 1
+            ? padLeft + drawableWidth / 2
+            : padLeft + (monthIndex / (monthCount - 1)) * drawableWidth;
 
-          const incomeBars = incomeSeries.flatMap((item) => {
-            return item.values
-              .map((value, monthIndex) => {
-                if (value <= 0) {
-                  return null;
-                }
-
-                const centerX = centerXForMonth(monthIndex);
-                const x = hasBothSeries
-                  ? centerX - centerShift - barWidth
-                  : centerX - barWidth / 2;
-                const barTop = valueToY(value);
-                const barHeight = valueToY(0) - barTop;
-
-                return {
-                  key: `${item.label}-${monthIndex}`,
-                  x: x.toFixed(2),
-                  y: barTop.toFixed(2),
-                  width: barWidth.toFixed(2),
-                  height: barHeight.toFixed(2),
-                  color: item.color,
-                  value,
-                  label: item.label,
-                };
-              })
-              .filter((bar): bar is BarSlot => bar !== null);
-          });
-
-          const stackedExpenseBars = months.flatMap((_, monthIndex) => {
-            const centerX = centerXForMonth(monthIndex);
-            const baseX = hasBothSeries
-              ? centerX + centerShift
-              : centerX - barWidth / 2;
-            const x = hasBothSeries ? baseX : centerX - barWidth / 2;
-
-            let cumulativeTop = 0;
-
-            return expenseSeries.flatMap((item) => {
-              const current = item.values[monthIndex] ?? 0;
-              if (current <= 0) {
-                return [];
+        const incomeBars = incomeSeries.flatMap((item) => {
+          return item.values
+            .map((value, monthIndex) => {
+              if (value <= 0) {
+                return null;
               }
 
-              const segmentStart = cumulativeTop;
-              const segmentEnd = cumulativeTop + current;
-              cumulativeTop = segmentEnd;
+              const centerX = centerXForMonth(monthIndex);
+              const x = hasBothSeries
+                ? centerX - centerShift - barWidth
+                : centerX - barWidth / 2;
+              const barTop = valueToY(value);
+              const barHeight = valueToY(0) - barTop;
 
-              const yTop = valueToY(segmentEnd);
-              const yBase = valueToY(segmentStart);
-              const height = yBase - yTop;
+              return {
+                key: `${item.label}-${monthIndex}`,
+                x: x.toFixed(2),
+                y: barTop.toFixed(2),
+                width: barWidth.toFixed(2),
+                height: barHeight.toFixed(2),
+                color: item.color,
+                value,
+                label: item.label,
+              };
+            })
+            .filter((bar): bar is BarSlot => bar !== null);
+        });
 
-              return [
-                {
-                  key: `${item.label}-${monthIndex}-stack`,
-                  x: x.toFixed(2),
-                  y: yTop.toFixed(2),
-                  width: barWidth.toFixed(2),
-                  height: height.toFixed(2),
-                  color: item.color,
-                  value: current,
-                  label: item.label,
-                },
-              ];
-            });
+        const stackedExpenseBars = months.flatMap((_, monthIndex) => {
+          const centerX = centerXForMonth(monthIndex);
+          const baseX = hasBothSeries
+            ? centerX + centerShift
+            : centerX - barWidth / 2;
+          const x = hasBothSeries ? baseX : centerX - barWidth / 2;
+
+          let cumulativeTop = 0;
+
+          return expenseSeries.flatMap((item) => {
+            const current = item.values[monthIndex] ?? 0;
+            if (current <= 0) {
+              return [];
+            }
+
+            const segmentStart = cumulativeTop;
+            const segmentEnd = cumulativeTop + current;
+            cumulativeTop = segmentEnd;
+
+            const yTop = valueToY(segmentEnd);
+            const yBase = valueToY(segmentStart);
+            const height = yBase - yTop;
+
+            return [
+              {
+                key: `${item.label}-${monthIndex}-stack`,
+                x: x.toFixed(2),
+                y: yTop.toFixed(2),
+                width: barWidth.toFixed(2),
+                height: height.toFixed(2),
+                color: item.color,
+                value: current,
+                label: item.label,
+              },
+            ];
           });
+        });
 
-          return [...incomeBars, ...stackedExpenseBars];
-        })()
+        return [...incomeBars, ...stackedExpenseBars];
+      })()
       : [];
   const visibleBars = bars.filter((bar): bar is BarSlot => bar !== null);
   const startMonth = months[0] ?? "";
@@ -200,7 +200,7 @@ function TrendChart({
               viewBox="0 0 100 56"
               role="img"
               aria-label={title}
-              className="w-full h-40"
+              className="w-full h-32 sm:h-40"
             >
               {[0, 1, 2, 3].map((index) => {
                 const y = padTop + (index * drawableHeight) / 3;
@@ -232,6 +232,8 @@ function TrendChart({
                   className="transition-all duration-200 cursor-pointer"
                   onMouseEnter={() => setHoveredBar(bar)}
                   onMouseLeave={() => setHoveredBar(null)}
+                  onTouchStart={(e) => { e.preventDefault(); setHoveredBar(bar); }}
+                  onTouchEnd={() => setHoveredBar(null)}
                 />
               ))}
 
@@ -433,18 +435,16 @@ export default function MonthlyCumulativeTrends({
             <button
               type="button"
               onClick={() => onGraphModeChange('usage')}
-              className={`px-2.5 py-1 transition-colors ${
-                graphMode === 'usage' ? 'bg-indigo-600 text-white' : 'text-muted hover:text-primary'
-              }`}
+              className={`px-2.5 py-1 transition-colors ${graphMode === 'usage' ? 'bg-indigo-600 text-white' : 'text-muted hover:text-primary'
+                }`}
             >
               사용 기준
             </button>
             <button
               type="button"
               onClick={() => onGraphModeChange('billing')}
-              className={`px-2.5 py-1 transition-colors ${
-                graphMode === 'billing' ? 'bg-indigo-600 text-white' : 'text-muted hover:text-primary'
-              }`}
+              className={`px-2.5 py-1 transition-colors ${graphMode === 'billing' ? 'bg-indigo-600 text-white' : 'text-muted hover:text-primary'
+                }`}
             >
               청구 기준
             </button>

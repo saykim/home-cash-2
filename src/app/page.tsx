@@ -517,7 +517,7 @@ export default function HomePage() {
             <p className="text-sm text-muted">Macro Money Manager</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* 월 네비게이션 */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 surface-card rounded-xl px-1 py-1">
@@ -545,7 +545,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setCurrentMonth(todayMonth)}
-                  className="text-xs text-indigo-600 hover:underline"
+                  className="text-xs text-indigo-600 hover:underline px-2 py-1.5 rounded-md"
                 >
                   오늘로
                 </button>
@@ -586,7 +586,7 @@ export default function HomePage() {
                   : 'text-secondary hover:text-primary'
                   }`}
               >
-                설정 (기준정보)
+                설정<span className="hidden sm:inline"> (기준정보)</span>
               </button>
             </div>
             <button
@@ -603,7 +603,8 @@ export default function HomePage() {
               onClick={() => router.push('/account')}
               className="surface-card rounded-xl px-3 py-2 text-sm text-secondary hover:text-primary"
             >
-              {session.data?.user?.email ?? '계정'}
+              <span className="hidden sm:inline">{session.data?.user?.email ?? '계정'}</span>
+              <span className="sm:hidden">계정</span>
             </button>
             <button
               type="button"

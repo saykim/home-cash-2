@@ -230,7 +230,7 @@ export default function CardPerformanceGauge({ cards }: Props) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] text-muted border-b" style={{ borderColor: 'var(--border)' }}>
-                    <th className="pb-1.5 font-medium">날짜</th>
+                    <th className="pb-1.5 font-medium hidden sm:table-cell">날짜</th>
                     <th className="pb-1.5 font-medium">분류</th>
                     <th className="pb-1.5 font-medium">메모</th>
                     <th className="pb-1.5 font-medium text-right">금액</th>
@@ -243,9 +243,12 @@ export default function CardPerformanceGauge({ cards }: Props) {
                       className="text-[11px] border-b last:border-b-0"
                       style={{ borderColor: 'var(--border)' }}
                     >
-                      <td className="py-1.5 text-muted whitespace-nowrap pr-3">{tx.transactionDate}</td>
+                      <td className="py-1.5 text-muted whitespace-nowrap pr-3 hidden sm:table-cell">{tx.transactionDate}</td>
                       <td className="py-1.5 text-secondary whitespace-nowrap pr-3">{tx.category ?? '미분류'}</td>
-                      <td className="py-1.5 text-primary truncate max-w-[200px]">{tx.memo?.trim() || '-'}</td>
+                      <td className="py-1.5 text-primary truncate max-w-[120px] sm:max-w-[200px]">
+                        <span className="block text-[10px] text-muted sm:hidden mb-0.5">{tx.transactionDate}</span>
+                        {tx.memo?.trim() || '-'}
+                      </td>
                       <td className="py-1.5 text-primary font-semibold text-right tabular-nums whitespace-nowrap">
                         {fmt(tx.amount)}원
                       </td>
