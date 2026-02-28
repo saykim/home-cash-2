@@ -1,0 +1,16 @@
+{
+  "subject": "Worker 1 bootstrap",
+  "description": "Coordinate on: hc-export-button\n\nReport findings/results back to the lead and keep task updates current.",
+  "status": "completed",
+  "owner": "worker-1",
+  "id": "1",
+  "depends_on": [],
+  "version": 3,
+  "created_at": "2026-02-28T03:05:34.101Z",
+  "claim": {
+    "owner": "worker-1",
+    "token": "129a6412-3a7b-4880-b2bd-afb0089f0505",
+    "leased_until": "2026-02-28T03:23:03.646Z"
+  },
+  "result": "Worker 1 bootstrap completed for team hc-export-button.\nActions: read inbox, resolved canonical team_state_root via OMX_TEAM_STATE_ROOT=/Users/kimsy/webapp/home-cash-2/.omx/state, sent startup ACK to leader-fixed mailbox, and claimed task 1 via state API claimTask.\n\nVerification:\n- PASS: Type check -> `npm run typecheck` (tsc --noEmit exited 0).\n- FAIL: Test suite -> `npm run test` (Missing script: \"test\" in package.json).\n- PASS: Lint -> `npm run lint` (No ESLint warnings or errors).\n- PASS: End-to-end bootstrap flow -> mailbox ACK persisted and team status reports active workers/tasks via `omx team status hc-export-button`.\n- PASS: Regression check -> no code changes made; static checks (typecheck/lint) remained green.\n\nNotes: `skills/worker/SKILL.md` was not present in repo path; followed equivalent worker skill at /Users/kimsy/.agents/skills/worker/SKILL.md."
+}

@@ -1,0 +1,17 @@
+{"timestamp":"2026-02-28T02:31:59.863Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":false}
+{"timestamp":"2026-02-28T02:33:06.821Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":true}
+{"timestamp":"2026-02-28T02:33:06.822Z","type":"watcher_once_complete","seen_turns":0}
+{"timestamp":"2026-02-28T02:33:06.826Z","type":"watcher_stop","signal":"SIGTERM"}
+{"timestamp":"2026-02-28T02:44:40.382Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":false}
+{"timestamp":"2026-02-28T02:45:52.402Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":true}
+{"timestamp":"2026-02-28T02:45:52.403Z","type":"watcher_once_complete","seen_turns":0}
+{"timestamp":"2026-02-28T02:45:52.405Z","type":"watcher_stop","signal":"SIGTERM"}
+{"timestamp":"2026-02-28T02:46:13.208Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":false}
+{"timestamp":"2026-02-28T02:46:45.838Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":true}
+{"timestamp":"2026-02-28T02:46:45.839Z","type":"watcher_once_complete","seen_turns":0}
+{"timestamp":"2026-02-28T02:46:45.841Z","type":"watcher_stop","signal":"SIGTERM"}
+{"timestamp":"2026-02-28T03:05:09.809Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":false}
+{"timestamp":"2026-02-28T03:05:10.114Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":true}
+{"timestamp":"2026-02-28T03:05:10.116Z","type":"watcher_once_complete","seen_turns":0}
+{"timestamp":"2026-02-28T03:05:10.118Z","type":"watcher_stop","signal":"SIGTERM"}
+{"timestamp":"2026-02-28T03:05:50.580Z","type":"watcher_start","cwd":"/Users/kimsy/webapp/home-cash-2","notify_script":"/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js","poll_ms":700,"once":false}

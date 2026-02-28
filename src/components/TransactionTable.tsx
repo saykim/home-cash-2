@@ -1,6 +1,6 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Download, Trash2 } from 'lucide-react';
 import TransactionForm from '@/components/TransactionForm';
 import type { Transaction, PaymentMethod } from '@/types';
 import type { CreateTransactionDTO } from '@/types';
@@ -57,6 +57,7 @@ export default function TransactionTable({
   const moneyFormatter = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 });
   const rowCount = transactions.length;
   const totalAmount = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+  const exportFileName = `transactions-${currentMonth}-export.csv`;
 
   /* 결제일 레이블 (개별 row M/D 표시용) */
   const getBillingLabel = (tx: Transaction): string | null => {
@@ -92,6 +93,50 @@ export default function TransactionTable({
     return `${signValue}원`;
   };
 
+  const escapeCsv = (value: string | number | null | undefined) => {
+    const normalized = value ?? '';
+    const text = String(normalized);
+
+    if (/[",\n\r]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    return text;
+  };
+
+  const handleExportTransactions = () => {
+    if (transactions.length === 0) {
+      return;
+    }
+
+    const headers = ['거래일', '구분', '내역', '결제수단', '금액', '실적반영', '청구제외'];
+    const rows = transactions.map((tx) => [
+      tx.transactionDate,
+      tx.category ?? '',
+      tx.memo ?? '',
+      tx.paymentMethodName ?? '',
+      tx.amount,
+      tx.excludeFromPerformance ? '제외' : '포함',
+      tx.excludeFromBilling ? '예' : '아니오',
+    ]);
+
+    const csvBody = [headers, ...rows]
+      .map(row => row.map(value => escapeCsv(value)).join(','))
+      .join('\r\n');
+    const csvContent = `\uFEFF${csvBody}`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const downloadUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = exportFileName;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(downloadUrl);
+  };
+
   const movePerformanceFocus = (next: TransactionFilters['performance'], e: KeyboardEvent<HTMLButtonElement>) => {
     const currentIndex = performanceOptions.indexOf(next);
 
@@ -119,7 +164,32 @@ export default function TransactionTable({
     <section className="surface-card rounded-2xl p-6" aria-label="거래 내역 검색 및 목록">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <h2 className="text-lg font-bold text-primary">최근 내역 요약</h2>
-        <div className="text-xs text-muted">검색/필터는 현재 월 데이터 기준</div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-muted">검색/필터는 현재 월 데이터 기준</div>
+          <button
+            type="button"
+            onClick={handleExportTransactions}
+            disabled={rowCount === 0}
+            className="group inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold text-secondary backdrop-blur-md transition-all duration-200 hover:text-primary hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] focus-visible:ring-offset-2"
+            style={{
+              background: 'color-mix(in oklab, var(--surface) 80%, transparent)',
+              borderColor: 'color-mix(in oklab, var(--border) 88%, transparent)',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in oklab, var(--surface) 96%, transparent)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'color-mix(in oklab, var(--border) 110%, transparent)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in oklab, var(--surface) 80%, transparent)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'color-mix(in oklab, var(--border) 88%, transparent)';
+            }}
+            aria-label="현재 필터 적용 내역 CSV 내보내기"
+            title={rowCount === 0 ? '내보낼 데이터가 없습니다.' : '현재 필터 적용 결과를 CSV로 내보내기'}
+          >
+            <Download size={14} aria-hidden="true" className="transition-transform duration-200 group-hover:translate-y-0.5" />
+            Export
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4" role="search">

@@ -1,0 +1,9 @@
+{
+  "pid": 88225,
+  "started_at": "2026-02-28T03:05:50.579Z",
+  "cwd": "/Users/kimsy/webapp/home-cash-2",
+  "notify_script": "/Users/kimsy/.nvm/versions/node/v22.20.0/lib/node_modules/oh-my-codex/scripts/notify-hook.js",
+  "poll_ms": 700,
+  "tracked_files": 4,
+  "seen_turns": 0
+}

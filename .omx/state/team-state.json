@@ -1,0 +1,15 @@
+{
+  "active": true,
+  "mode": "team",
+  "iteration": 0,
+  "max_iterations": 50,
+  "current_phase": "team-exec",
+  "task_description": "hc-export-button",
+  "started_at": "2026-02-28T03:05:47.602Z",
+  "tmux_pane_id": "%77",
+  "tmux_pane_set_at": "2026-02-28T03:05:47.602Z",
+  "linked_ralph": false,
+  "team_name": "hc-export-button",
+  "agent_count": 3,
+  "agent_types": "executor"
+}

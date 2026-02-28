@@ -1,0 +1,6 @@
+{"event_id":"dac2cb41-900b-454b-8587-9578c3a7ba5f","team":"hc-export-button","created_at":"2026-02-28T03:08:00.876Z","type":"message_received","worker":"leader-fixed","message_id":"bdd4c82a-8cb0-4231-8c61-183fc8ff5c4f"}
+{"event_id":"cb2b76cf-b597-47e7-b5ce-1b36a1488f98","team":"hc-export-button","created_at":"2026-02-28T03:08:15.120Z","type":"message_received","worker":"leader-fixed","message_id":"4ff59f1e-bc84-45c0-9d1a-af9241fff367"}
+{"event_id":"dfddafeb-4b1b-4c1f-a120-066e277053fd","team":"hc-export-button","created_at":"2026-02-28T03:08:40.107Z","type":"message_received","worker":"leader-fixed","message_id":"30f00885-9ffe-42d2-b69c-f1a0d26d240e"}
+{"event_id":"22a8b294-8444-4b85-a529-4055f126d62c","team":"hc-export-button","created_at":"2026-02-28T03:08:49.618Z","type":"task_completed","worker":"worker-1","task_id":"1","message_id":null}
+{"event_id":"8a1185e4-ca26-4cb0-979a-e10184e89a0a","team":"hc-export-button","created_at":"2026-02-28T03:10:12.275Z","type":"task_completed","worker":"worker-2","task_id":"2","message_id":null}
+{"event_id":"b7b1cbeb-670f-4a09-b055-0f12511d6ed4","team":"hc-export-button","created_at":"2026-02-28T03:10:12.280Z","type":"message_received","worker":"leader-fixed","message_id":"30583d5f-3afd-4ea2-9ea3-596b074ab88b"}
