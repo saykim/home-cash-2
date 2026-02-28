@@ -49,3 +49,5 @@ mobile_design_codex.md
 
 # AI agent temp files
 .omx/
+.claude/
+.sisyphus/
