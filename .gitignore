@@ -46,3 +46,6 @@ ref/
 # dev document
 mobile_design.md
 mobile_design_codex.md
+
+# AI agent temp files
+.omx/

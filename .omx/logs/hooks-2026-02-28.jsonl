@@ -1,9 +1,0 @@
-{"timestamp":"2026-02-28T02:31:59.831Z","type":"hook_dispatch","event":"session-start","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T02:33:06.827Z","type":"hook_dispatch","event":"session-end","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T02:44:40.353Z","type":"hook_dispatch","event":"session-start","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T02:45:52.407Z","type":"hook_dispatch","event":"session-end","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T02:46:13.181Z","type":"hook_dispatch","event":"session-start","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T02:46:45.843Z","type":"hook_dispatch","event":"session-end","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T03:05:09.780Z","type":"hook_dispatch","event":"session-start","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T03:05:10.120Z","type":"hook_dispatch","event":"session-end","source":"native","enabled":false,"reason":"plugins_disabled"}
-{"timestamp":"2026-02-28T03:05:50.516Z","type":"hook_dispatch","event":"session-start","source":"native","enabled":false,"reason":"plugins_disabled"}
