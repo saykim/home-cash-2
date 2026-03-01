@@ -28,6 +28,7 @@ interface PerformanceTransactionRow {
   category: string | null;
   memo: string | null;
   exclude_from_performance: number;
+  exclude_from_billing: number;
 }
 
 const DEFAULT_PERFORMANCE_START_DAY = 1;
@@ -123,7 +124,23 @@ const getPerformanceWindow = (
   };
 };
 
-/* resolvePerformanceMonth 제거됨: 조회 month를 직접 사용 */
+/** 실적 기간 종료일 기준으로 해당 기간의 결제가 어느 월에 이루어지는지 계산 */
+const getBillingMonthKey = (
+  perfWindowEnd: string,
+  billingDay: number,
+): string => {
+  const [endYear, endMonth, endDay] = perfWindowEnd.split("-").map(Number);
+  let billingYear = endYear;
+  let billingMonth = endMonth;
+  if (endDay >= billingDay) {
+    billingMonth += 1;
+    if (billingMonth > 12) {
+      billingMonth = 1;
+      billingYear += 1;
+    }
+  }
+  return `${billingYear}-${String(billingMonth).padStart(2, "0")}`;
+};
 
 export async function GET(request: Request) {
   const unauthorized = await requireAuth();
@@ -232,7 +249,8 @@ export async function GET(request: Request) {
         amount,
         category,
         memo,
-        exclude_from_performance
+        exclude_from_performance,
+        exclude_from_billing
       FROM transactions
       WHERE payment_method_id IS NOT NULL
         AND amount < 0
@@ -372,35 +390,41 @@ export async function GET(request: Request) {
       };
     });
 
-    // ── billing 집계: 실적기간(가 결제 그룹) 기준 ──
-    // 당월 결제 = 전월 실적기간 합계
-    // 익월 결제 예정 = 당월 실적 합계 (= currentPerformance)
+    // ── billing 집계: 실적기간의 결제 예정월을 정확히 계산 ──
     let currentMonthBilling = 0;
+    let nextMonthBilling = 0;
+    const nextMonthKey = `${next.year}-${String(next.month).padStart(2, "0")}`;
 
     for (const methodRow of methodRows) {
-      if (methodRow.type !== "CREDIT") continue;
+      if (methodRow.type !== "CREDIT" || !methodRow.billing_day) continue;
       const startDay = clampDay(methodRow.performance_start_day);
+      const bd = clampDay(methodRow.billing_day);
       const txs = transactionsByPaymentMethod.get(methodRow.id) ?? [];
 
-      // 전월 실적기간
-      const prevPerfWindow = getPerformanceWindow(
-        previousMonth.year,
-        previousMonth.month,
-        startDay,
-      );
-      currentMonthBilling += txs
-        .filter(
-          (tx) =>
-            tx.transaction_date >= prevPerfWindow.start &&
-            tx.transaction_date <= prevPerfWindow.end,
-        )
-        .reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
-    }
+      const windows = [
+        getPerformanceWindow(previousMonth.year, previousMonth.month, startDay),
+        getPerformanceWindow(year, monthNumber, startDay),
+        getPerformanceWindow(next.year, next.month, startDay),
+      ];
 
-    // 익월 결제 예정 = 당월 실적 합계
-    const nextMonthBilling = cardPerformances
-      .filter((cp) => cp.paymentMethodType === "CREDIT")
-      .reduce((s, cp) => s + cp.currentPerformance, 0);
+      for (const window of windows) {
+        const billingMonth = getBillingMonthKey(window.end, bd);
+        const windowTotal = txs
+          .filter(
+            (tx) =>
+              tx.transaction_date >= window.start &&
+              tx.transaction_date <= window.end &&
+              tx.exclude_from_billing !== 1,
+          )
+          .reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0);
+
+        if (billingMonth === month) {
+          currentMonthBilling += windowTotal;
+        } else if (billingMonth === nextMonthKey) {
+          nextMonthBilling += windowTotal;
+        }
+      }
+    }
 
     const billingSummary = {
       currentMonth: currentMonthBilling,
