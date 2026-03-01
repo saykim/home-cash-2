@@ -22,58 +22,51 @@ interface Props {
 
 const GUIDE_SECTIONS = [
   {
-    icon: <BarChart3 size={20} className="text-indigo-500" />,
+    icon: <BarChart3 size={16} />,
     title: "대시보드",
-    color: "border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20",
-    headColor: "text-indigo-700",
     items: [
       "< 연도 월 > 버튼으로 과거/미래 월 탐색",
       "수입 · 지출 · 잔액을 한눈에 파악",
+      "이월잔액: 이전 달까지 누적 잔액이 자동 이월 (설정에서 ON/OFF)",
       "잔액 기준 저축 가능액 자동 계산",
     ],
   },
   {
-    icon: <CreditCard size={20} className="text-violet-500" />,
-    title: "결제 수단 실적/사용 현황",
-    color: "border-violet-200 bg-violet-50 dark:bg-violet-950/20",
-    headColor: "text-violet-700",
+    icon: <CreditCard size={16} />,
+    title: "카드 실적 현황",
     items: [
       "카드별 실적 · 다음 혜택 달성까지 남은 금액 확인",
-      "산정기간(예: 1/1~1/31)과 결제 예정일(예: 2/14) 표시",
+      "산정기간(예: 1/20~2/19)과 결제 예정일(예: 3/1) 표시",
+      "결제일 전까지 이전 실적기간 결제 대기 금액 함께 표시",
       "카드 클릭 → 실적 기간 내 거래 상세 목록",
     ],
   },
   {
-    icon: <ListChecks size={20} className="text-emerald-500" />,
-    title: "최근 내역 요약",
-    color: "border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20",
-    headColor: "text-emerald-700",
+    icon: <ListChecks size={16} />,
+    title: "내역 관리",
     items: [
       "사용일 · 결제 예정일 동시 표시",
-      "수입 / 지출 / 이번 달 결제 / 다음 달 결제 예정 한눈에 집계",
+      "당월 결제 / 익월 결제 예정 금액을 결제일 기준으로 정확 집계",
       "분류 · 결제수단 · 실적 포함여부 필터",
-      "+ 내역 입력으로 지출/수입 직접 등록",
+      "+ 버튼으로 지출/수입 직접 등록",
     ],
   },
   {
-    icon: <Calendar size={20} className="text-amber-500" />,
-    title: "내역 입력 옵션",
-    color: "border-amber-200 bg-amber-50 dark:bg-amber-950/20",
-    headColor: "text-amber-700",
+    icon: <Calendar size={16} />,
+    title: "입력 옵션",
     items: [
-      "청구 제외: 취소/환불 등 실제 결제 안 되는 거래",
-      "실적 제외: 관리비·보험료 등 카드사 실적 미인정 항목",
+      "청구 제외 — 취소·환불 등 실제 결제되지 않는 거래 (결제 예정액에서 자동 차감)",
+      "실적 제외 — 관리비·보험료 등 카드사 실적 미인정 항목",
     ],
   },
   {
-    icon: <Settings size={20} className="text-slate-500" />,
-    title: "설정 (기준정보)",
-    color: "border-slate-200 bg-slate-50 dark:bg-slate-800/30",
-    headColor: "text-slate-700",
+    icon: <Settings size={16} />,
+    title: "설정",
     items: [
       "결제 수단 추가 · 이름 · 결제일 · 실적 산정 시작일 관리",
       "혜택 구간 설정 (예: 30만원 달성 시 캐시백 1%)",
       "산정 시작일에 따라 실적 기간 자동 계산",
+      "이월잔액 표시 ON/OFF",
     ],
   },
 ];
@@ -171,26 +164,26 @@ export default function CashflowSummary({ summary }: Props) {
           onClick={() => setShowGuide(false)}
         >
           <div
-            className="surface-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto"
+            className="surface-card rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 헤더 */}
             <div
-              className="sticky top-0 surface-card flex items-center justify-between px-4 sm:px-6 py-4 border-b z-10"
+              className="sticky top-0 surface-card flex items-center justify-between px-5 sm:px-6 py-5 border-b z-10"
               style={{ borderColor: "var(--border)" }}
             >
               <div>
-                <h2 className="text-lg font-bold text-primary">
-                  🏠 우리집 가계부 사용 가이드
-                </h2>
-                <p className="text-xs text-muted mt-0.5">
-                  급여로 카드 결제가 충분한지 한눈에 파악하는 스마트 가계부
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted mb-1">
+                  Guide
                 </p>
+                <h2 className="text-base font-bold text-primary tracking-tight">
+                  우리집 가계부 사용 가이드
+                </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setShowGuide(false)}
-                className="text-muted hover:text-primary p-1.5 rounded-lg hover:bg-[color:var(--bg-soft)]"
+                className="text-muted hover:text-primary p-1.5 rounded-lg hover:bg-[color:var(--bg-soft)] transition-colors"
                 aria-label="닫기"
               >
                 <X size={18} />
@@ -198,56 +191,62 @@ export default function CashflowSummary({ summary }: Props) {
             </div>
 
             {/* 콘텐츠 */}
-            <div className="p-4 sm:p-6 space-y-4">
-              {GUIDE_SECTIONS.map((section) => (
-                <div
-                  key={section.title}
-                  className={`rounded-xl border p-4 ${section.color}`}
-                >
-                  <h3
-                    className={`flex items-center gap-2 font-bold text-sm mb-3 ${section.headColor}`}
-                  >
-                    {section.icon}
+            <div className="px-5 sm:px-6 py-5 space-y-5">
+              {GUIDE_SECTIONS.map((section, idx) => (
+                <div key={section.title}>
+                  <h3 className="flex items-center gap-2 text-[13px] font-bold text-primary mb-2.5 tracking-tight">
+                    <span className="text-muted opacity-70">
+                      {section.icon}
+                    </span>
                     {section.title}
                   </h3>
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-1.5 pl-6">
                     {section.items.map((item) => (
                       <li
                         key={item}
-                        className="flex items-start gap-2 text-xs text-secondary"
+                        className="text-xs text-secondary leading-relaxed list-disc marker:text-[color:var(--border-strong)]"
                       >
-                        <span className="mt-0.5 shrink-0 w-1 h-1 rounded-full bg-current opacity-50 mt-1.5" />
                         {item}
                       </li>
                     ))}
                   </ul>
+                  {idx < GUIDE_SECTIONS.length - 1 && (
+                    <div
+                      className="mt-5 border-b"
+                      style={{ borderColor: "var(--border)" }}
+                    />
+                  )}
                 </div>
               ))}
 
               {/* 핵심 플로우 */}
               <div
-                className="rounded-xl border border-dashed p-4"
-                style={{ borderColor: "var(--border)" }}
+                className="rounded-xl p-4 mt-2"
+                style={{ background: "var(--bg-soft)" }}
               >
-                <h3 className="text-xs font-bold text-muted uppercase tracking-wide mb-3">
-                  💡 핵심 활용 흐름
-                </h3>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted mb-3">
+                  Quick Start
+                </p>
+                <ol className="space-y-2">
                   {[
-                    "① 설정에서 카드 등록",
-                    "결제일 · 실적 시작일 입력",
-                    "② 매일 지출/수입 입력",
-                    "③ 대시보드에서 이번 달\n결제 총액 확인",
-                    "④ 다음 달 결제 예정 ≤ 급여\n→ 안심!",
+                    "설정에서 카드 등록 (결제일 · 실적 시작일 입력)",
+                    "매일 지출/수입 내역 입력",
+                    "대시보드에서 이번 달 결제 총액 확인",
+                    "다음 달 결제 예정 ≤ 급여 → 안심",
                   ].map((step, i) => (
-                    <span
+                    <li
                       key={i}
-                      className="px-3 py-1.5 rounded-lg surface-soft text-secondary text-center whitespace-pre-line leading-tight"
+                      className="flex items-start gap-2.5 text-xs text-secondary leading-relaxed"
                     >
+                      <span className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold"
+                        style={{ background: "var(--border)", color: "var(--text-muted)" }}
+                      >
+                        {i + 1}
+                      </span>
                       {step}
-                    </span>
+                    </li>
                   ))}
-                </div>
+                </ol>
               </div>
             </div>
           </div>
