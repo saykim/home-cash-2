@@ -1,14 +1,23 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef, type KeyboardEvent, type ReactNode } from 'react';
-import { Moon, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
-import CashflowSummary from '@/components/CashflowSummary';
-import CardPerformanceGauge from '@/components/CardPerformanceGauge';
-import MonthlyCumulativeTrends from '@/components/MonthlyCumulativeTrends';
-import TransactionTable, { type TransactionFilters } from '@/components/TransactionTable';
-import SettingsView from '@/components/SettingsView';
-import { authClient } from '@/lib/auth/client';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { Moon, Sun, ChevronLeft, ChevronRight } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import CashflowSummary from "@/components/CashflowSummary";
+import CardPerformanceGauge from "@/components/CardPerformanceGauge";
+import MonthlyCumulativeTrends from "@/components/MonthlyCumulativeTrends";
+import TransactionTable, {
+  type TransactionFilters,
+} from "@/components/TransactionTable";
+import SettingsView from "@/components/SettingsView";
+import { authClient } from "@/lib/auth/client";
 import type {
   CashflowSummary as CashflowData,
   CardPerformance,
@@ -16,9 +25,9 @@ import type {
   PaymentMethod,
   BenefitTier,
   CreateTransactionDTO,
-} from '@/types';
+} from "@/types";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface PaymentMethodWithTiers extends PaymentMethod {
   benefitTiers: BenefitTier[];
@@ -37,16 +46,21 @@ interface DashboardData {
   billingSummary: BillingSummary;
 }
 
-type DashboardSectionId = 'card-performance' | 'monthly-trends' | 'recent-transactions';
+type DashboardSectionId =
+  | "card-performance"
+  | "monthly-trends"
+  | "recent-transactions";
 
 const DEFAULT_DASHBOARD_SECTION_ORDER: DashboardSectionId[] = [
-  'card-performance',
-  'monthly-trends',
-  'recent-transactions',
+  "card-performance",
+  "monthly-trends",
+  "recent-transactions",
 ];
 
 const isDashboardSectionId = (value: string): value is DashboardSectionId =>
-  value === 'card-performance' || value === 'monthly-trends' || value === 'recent-transactions';
+  value === "card-performance" ||
+  value === "monthly-trends" ||
+  value === "recent-transactions";
 
 const normalizeSectionOrder = (input: unknown): DashboardSectionId[] => {
   if (!Array.isArray(input)) {
@@ -54,72 +68,89 @@ const normalizeSectionOrder = (input: unknown): DashboardSectionId[] => {
   }
 
   const deduped = Array.from(
-    new Set(input.filter((value): value is DashboardSectionId => typeof value === 'string' && isDashboardSectionId(value))),
+    new Set(
+      input.filter(
+        (value): value is DashboardSectionId =>
+          typeof value === "string" && isDashboardSectionId(value),
+      ),
+    ),
   );
-  const missing = DEFAULT_DASHBOARD_SECTION_ORDER.filter(value => !deduped.includes(value));
+  const missing = DEFAULT_DASHBOARD_SECTION_ORDER.filter(
+    (value) => !deduped.includes(value),
+  );
   return [...deduped, ...missing];
 };
 
 const defaultTransactionFilters: TransactionFilters = {
-  search: '',
-  category: 'all',
-  paymentMethodId: 'all',
-  performance: 'all',
+  search: "",
+  category: "all",
+  paymentMethodId: "all",
+  performance: "all",
 };
 
 export default function HomePage() {
   const router = useRouter();
   const pathname = usePathname();
   const session = authClient.useSession();
-  const [activeTab, setActiveTabState] = useState<'dashboard' | 'settings'>('dashboard');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [activeTab, setActiveTabState] = useState<"dashboard" | "settings">(
+    "dashboard",
+  );
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+    null,
+  );
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodWithTiers[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<
+    PaymentMethodWithTiers[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const [transactionFilters, setTransactionFilters] = useState<TransactionFilters>(defaultTransactionFilters);
-  const [sectionOrder, setSectionOrder] = useState<DashboardSectionId[]>(DEFAULT_DASHBOARD_SECTION_ORDER);
-  const [draggingSection, setDraggingSection] = useState<DashboardSectionId | null>(null);
-  const [graphMode, setGraphMode] = useState<'usage' | 'billing'>('usage');
+  const [transactionFilters, setTransactionFilters] =
+    useState<TransactionFilters>(defaultTransactionFilters);
+  const [sectionOrder, setSectionOrder] = useState<DashboardSectionId[]>(
+    DEFAULT_DASHBOARD_SECTION_ORDER,
+  );
+  const [enableCarryOver, setEnableCarryOver] = useState(true);
+  const [draggingSection, setDraggingSection] =
+    useState<DashboardSectionId | null>(null);
+  const [graphMode, setGraphMode] = useState<"usage" | "billing">("usage");
   const isInitialTransactionsLoadRef = useRef(true);
   const now = new Date();
-  const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [currentMonth, setCurrentMonth] = useState(todayMonth);
 
   const moveMonth = (delta: -1 | 1) => {
-    setCurrentMonth(prev => {
-      const [y, m] = prev.split('-').map(Number);
+    setCurrentMonth((prev) => {
+      const [y, m] = prev.split("-").map(Number);
       const d = new Date(y, m - 1 + delta, 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     });
   };
 
   const displayMonth = (() => {
-    const [y, m] = currentMonth.split('-').map(Number);
+    const [y, m] = currentMonth.split("-").map(Number);
     return `${y}년 ${m}월`;
   })();
   const isCurrentMonth = currentMonth === todayMonth;
 
-  const parseApiJson = useCallback(
-    async function parseApiJson<T>(response: Response): Promise<T | null> {
-      if (!response.ok) {
-        return null;
-      }
+  const parseApiJson = useCallback(async function parseApiJson<T>(
+    response: Response,
+  ): Promise<T | null> {
+    if (!response.ok) {
+      return null;
+    }
 
-      const text = await response.text();
-      if (!text) {
-        return null;
-      }
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
 
-      try {
-        return (JSON.parse(text) as T) ?? null;
-      } catch {
-        return null;
-      }
-    },
-    [],
-  );
+    try {
+      return (JSON.parse(text) as T) ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     const dashRes = await fetch(`/api/dashboard?month=${currentMonth}`);
@@ -131,7 +162,7 @@ export default function HomePage() {
   }, [currentMonth, parseApiJson]);
 
   const fetchPaymentMethods = useCallback(async () => {
-    const pmRes = await fetch('/api/payment-methods');
+    const pmRes = await fetch("/api/payment-methods");
     const pms = await parseApiJson<PaymentMethodWithTiers[]>(pmRes);
     if (!pms) {
       return;
@@ -150,21 +181,24 @@ export default function HomePage() {
 
       const txParams = new URLSearchParams({
         month: currentMonth,
-        limit: '300',
+        limit: "300",
         search: filters.search,
         category: filters.category,
         paymentMethodId: filters.paymentMethodId,
         performance: filters.performance,
-        billingMode: graphMode === 'billing' ? 'true' : 'false',
+        billingMode: graphMode === "billing" ? "true" : "false",
       });
 
-      if (graphMode === 'billing' && paymentMethods.length > 0) {
+      if (graphMode === "billing" && paymentMethods.length > 0) {
         txParams.set(
-          'paymentMethodsJson',
+          "paymentMethodsJson",
           JSON.stringify(
             paymentMethods
-              .filter((pm) => pm.type === 'CREDIT')
-              .map((pm) => ({ id: pm.id, performanceStartDay: pm.performanceStartDay })),
+              .filter((pm) => pm.type === "CREDIT")
+              .map((pm) => ({
+                id: pm.id,
+                performanceStartDay: pm.performanceStartDay,
+              })),
           ),
         );
       }
@@ -187,25 +221,51 @@ export default function HomePage() {
     [currentMonth, parseApiJson, graphMode, paymentMethods],
   );
 
-  const persistSectionOrder = useCallback(async (nextOrder: DashboardSectionId[]) => {
-    try {
-      await fetch('/api/user-dashboard-layout', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sectionOrder: nextOrder }),
-      });
-    } catch {
-      // keep local reorder state even if save fails
-    }
-  }, []);
+  const persistSectionOrder = useCallback(
+    async (nextOrder: DashboardSectionId[]) => {
+      try {
+        await fetch("/api/user-dashboard-layout", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionOrder: nextOrder }),
+        });
+      } catch {
+        // keep local reorder state even if save fails
+      }
+    },
+    [],
+  );
 
   const fetchSectionOrder = useCallback(async () => {
-    const layoutRes = await fetch('/api/user-dashboard-layout');
-    const layout = await parseApiJson<{ sectionOrder: DashboardSectionId[] }>(layoutRes);
+    const layoutRes = await fetch("/api/user-dashboard-layout");
+    const layout = await parseApiJson<{
+      sectionOrder: DashboardSectionId[];
+      enableCarryOver?: boolean;
+    }>(layoutRes);
     if (layout?.sectionOrder) {
       setSectionOrder(normalizeSectionOrder(layout.sectionOrder));
     }
+    if (layout && typeof layout.enableCarryOver === "boolean") {
+      setEnableCarryOver(layout.enableCarryOver);
+    }
   }, [parseApiJson]);
+
+  const handleToggleCarryOver = useCallback(
+    async (value: boolean) => {
+      setEnableCarryOver(value);
+      try {
+        await fetch("/api/user-dashboard-layout", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionOrder, enableCarryOver: value }),
+        });
+      } catch {
+        /* keep local state */
+      }
+      await fetchDashboardData();
+    },
+    [sectionOrder, fetchDashboardData],
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -215,7 +275,9 @@ export default function HomePage() {
         fetchDashboardData(),
         fetchPaymentMethods(),
         fetchSectionOrder(),
-        fetchTransactions(defaultTransactionFilters, { showLoading: initialLoad }),
+        fetchTransactions(defaultTransactionFilters, {
+          showLoading: initialLoad,
+        }),
       ]);
       isInitialTransactionsLoadRef.current = false;
       setLoading(false);
@@ -244,19 +306,21 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graphMode]);
 
-
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const initialTheme = savedTheme === 'dark' || savedTheme === 'light'
-      ? savedTheme
-      : (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    const savedTheme = localStorage.getItem("theme");
+    const initialTheme =
+      savedTheme === "dark" || savedTheme === "light"
+        ? savedTheme
+        : document.documentElement.classList.contains("dark")
+          ? "dark"
+          : "light";
     setTheme(initialTheme);
-    document.documentElement.classList.toggle('dark', initialTheme === 'dark');
+    document.documentElement.classList.toggle("dark", initialTheme === "dark");
   }, []);
 
-  const setActiveTab = (tab: 'dashboard' | 'settings') => {
+  const setActiveTab = (tab: "dashboard" | "settings") => {
     const nextParams = new URLSearchParams(window.location.search);
-    nextParams.set('tab', tab);
+    nextParams.set("tab", tab);
     router.replace(`${pathname}?${nextParams.toString()}`, { scroll: false });
     setActiveTabState(tab);
   };
@@ -264,57 +328,60 @@ export default function HomePage() {
   useEffect(() => {
     const syncTabFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
-      const next = params.get('tab') === 'settings' ? 'settings' : 'dashboard';
+      const next = params.get("tab") === "settings" ? "settings" : "dashboard";
       setActiveTabState(next);
     };
 
     syncTabFromUrl();
-    window.addEventListener('popstate', syncTabFromUrl);
+    window.addEventListener("popstate", syncTabFromUrl);
 
     return () => {
-      window.removeEventListener('popstate', syncTabFromUrl);
+      window.removeEventListener("popstate", syncTabFromUrl);
     };
   }, []);
 
   const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
+    const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-    localStorage.setItem('theme', next);
+    document.documentElement.classList.toggle("dark", next === "dark");
+    localStorage.setItem("theme", next);
   };
 
   const handleSignOut = async () => {
     try {
       const { error } = await authClient.signOut();
       if (error) {
-        throw new Error(error.message || '로그아웃에 실패했습니다.');
+        throw new Error(error.message || "로그아웃에 실패했습니다.");
       }
     } catch {
       try {
-        await fetch('/api/auth/sign-out', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}',
-          credentials: 'include',
+        await fetch("/api/auth/sign-out", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+          credentials: "include",
         });
       } catch {
         // Ignore fallback errors and force redirect below.
       }
     } finally {
-      window.location.assign('/auth/sign-in');
+      window.location.assign("/auth/sign-in");
     }
   };
 
   const handleCreateTransaction = async (dto: CreateTransactionDTO) => {
-    const createRes = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const createRes = await fetch("/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dto),
     });
 
     const createdTransaction = await parseApiJson<Transaction>(createRes);
     if (createdTransaction) {
-      setTransactions((prev) => [createdTransaction, ...prev.filter((tx) => tx.id !== createdTransaction.id)]);
+      setTransactions((prev) => [
+        createdTransaction,
+        ...prev.filter((tx) => tx.id !== createdTransaction.id),
+      ]);
 
       if (createdTransaction.transactionDate.startsWith(currentMonth)) {
         setDashboardData((prev) => {
@@ -333,16 +400,24 @@ export default function HomePage() {
           }
 
           const nextCardPerformances = prev.cardPerformances.map((card) => {
-            const isTargetCard = createdTransaction.paymentMethodId === card.paymentMethodId;
+            const isTargetCard =
+              createdTransaction.paymentMethodId === card.paymentMethodId;
             const isExpense = createdTransaction.amount < 0;
             const isWithinPerformancePeriod =
-              createdTransaction.transactionDate >= card.performancePeriodStart &&
+              createdTransaction.transactionDate >=
+                card.performancePeriodStart &&
               createdTransaction.transactionDate <= card.performancePeriodEnd;
             const isIncludedInPerformance = !(
-              card.paymentMethodType === 'CREDIT' && createdTransaction.excludeFromPerformance
+              card.paymentMethodType === "CREDIT" &&
+              createdTransaction.excludeFromPerformance
             );
 
-            if (!isTargetCard || !isExpense || !isWithinPerformancePeriod || !isIncludedInPerformance) {
+            if (
+              !isTargetCard ||
+              !isExpense ||
+              !isWithinPerformancePeriod ||
+              !isIncludedInPerformance
+            ) {
               return card;
             }
 
@@ -354,8 +429,12 @@ export default function HomePage() {
                 category: createdTransaction.category,
                 memo: createdTransaction.memo,
               },
-              ...card.usageTransactions.filter((transaction) => transaction.id !== createdTransaction.id),
-            ].sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+              ...card.usageTransactions.filter(
+                (transaction) => transaction.id !== createdTransaction.id,
+              ),
+            ].sort((a, b) =>
+              b.transactionDate.localeCompare(a.transactionDate),
+            );
 
             const nextCurrentPerformance = nextUsageTransactions.reduce(
               (sum, transaction) => sum + transaction.amount,
@@ -372,14 +451,16 @@ export default function HomePage() {
               usageTransactions: nextUsageTransactions,
               currentPerformance: nextCurrentPerformance,
               tiers: nextTiers,
-              nextTierRemaining: nextTier ? nextTier.thresholdAmount - nextCurrentPerformance : null,
+              nextTierRemaining: nextTier
+                ? nextTier.thresholdAmount - nextCurrentPerformance
+                : null,
             };
           });
 
           return {
             cashflow: nextCashflow,
             cardPerformances: nextCardPerformances,
-            billingSummary: prev.billingSummary,  // 서버 재조회 시 갱신됨
+            billingSummary: prev.billingSummary, // 서버 재조회 시 갱신됨
           };
         });
       }
@@ -392,8 +473,11 @@ export default function HomePage() {
   };
 
   const handleDeleteTransaction = async (id: string) => {
-    await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
-    await Promise.all([fetchDashboardData(), fetchTransactions(transactionFilters)]);
+    await fetch(`/api/transactions/${id}`, { method: "DELETE" });
+    await Promise.all([
+      fetchDashboardData(),
+      fetchTransactions(transactionFilters),
+    ]);
   };
 
   const handleRefreshSettings = async () => {
@@ -404,22 +488,27 @@ export default function HomePage() {
     ]);
   };
 
-  const handleTransactionFiltersChange = async (filters: TransactionFilters) => {
+  const handleTransactionFiltersChange = async (
+    filters: TransactionFilters,
+  ) => {
     setTransactionFilters(filters);
     await fetchTransactions(filters);
   };
 
-  const onTabKeyDown = (e: KeyboardEvent<HTMLButtonElement>, target: 'dashboard' | 'settings') => {
+  const onTabKeyDown = (
+    e: KeyboardEvent<HTMLButtonElement>,
+    target: "dashboard" | "settings",
+  ) => {
     if (
-      e.key === 'ArrowRight' ||
-      e.key === 'ArrowLeft' ||
-      e.key === 'ArrowUp' ||
-      e.key === 'ArrowDown'
+      e.key === "ArrowRight" ||
+      e.key === "ArrowLeft" ||
+      e.key === "ArrowUp" ||
+      e.key === "ArrowDown"
     ) {
       e.preventDefault();
-      const next = target === 'dashboard' ? 'settings' : 'dashboard';
+      const next = target === "dashboard" ? "settings" : "dashboard";
       setActiveTab(next);
-      const nextTabId = next === 'dashboard' ? 'tab-dashboard' : 'tab-settings';
+      const nextTabId = next === "dashboard" ? "tab-dashboard" : "tab-settings";
       document.getElementById(nextTabId)?.focus();
     }
   };
@@ -427,30 +516,33 @@ export default function HomePage() {
   const categories = Array.from(
     new Set(
       transactions
-        .map(tx => tx.category)
+        .map((tx) => tx.category)
         .filter((value): value is string => Boolean(value)),
     ),
   );
 
-  const handleMethodColorChange = useCallback(async (methodName: string, color: string | null) => {
-    const pm = paymentMethods.find((m) => m.name === methodName);
-    if (!pm) return;
-    await fetch(`/api/payment-methods/${pm.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ color }),
-    });
-    setPaymentMethods((prev) =>
-      prev.map((m) => (m.id === pm.id ? { ...m, color } : m))
-    );
-  }, [paymentMethods]);
+  const handleMethodColorChange = useCallback(
+    async (methodName: string, color: string | null) => {
+      const pm = paymentMethods.find((m) => m.name === methodName);
+      if (!pm) return;
+      await fetch(`/api/payment-methods/${pm.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ color }),
+      });
+      setPaymentMethods((prev) =>
+        prev.map((m) => (m.id === pm.id ? { ...m, color } : m)),
+      );
+    },
+    [paymentMethods],
+  );
 
   const handleSectionDrop = (targetSection: DashboardSectionId) => {
     if (!draggingSection || draggingSection === targetSection) {
       return;
     }
 
-    setSectionOrder(prev => {
+    setSectionOrder((prev) => {
       const from = prev.indexOf(draggingSection);
       const to = prev.indexOf(targetSection);
       if (from === -1 || to === -1) {
@@ -465,13 +557,18 @@ export default function HomePage() {
     });
   };
 
-  const dashboardSectionMap: Record<DashboardSectionId, { title: string; node: ReactNode }> = {
-    'card-performance': {
-      title: '결제 수단 실적/사용 현황',
-      node: <CardPerformanceGauge cards={dashboardData?.cardPerformances ?? []} />,
+  const dashboardSectionMap: Record<
+    DashboardSectionId,
+    { title: string; node: ReactNode }
+  > = {
+    "card-performance": {
+      title: "결제 수단 실적/사용 현황",
+      node: (
+        <CardPerformanceGauge cards={dashboardData?.cardPerformances ?? []} />
+      ),
     },
-    'monthly-trends': {
-      title: '월별 누적 변화 추이',
+    "monthly-trends": {
+      title: "월별 누적 변화 추이",
       node: (
         <MonthlyCumulativeTrends
           transactions={transactions}
@@ -483,8 +580,8 @@ export default function HomePage() {
         />
       ),
     },
-    'recent-transactions': {
-      title: '최근 내역 요약',
+    "recent-transactions": {
+      title: "최근 내역 요약",
       node: (
         <TransactionTable
           transactions={transactions}
@@ -513,7 +610,9 @@ export default function HomePage() {
       <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-primary">우리집 가계부</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-primary">
+              우리집 가계부
+            </h1>
             <p className="text-sm text-muted">Macro Money Manager</p>
           </div>
 
@@ -562,14 +661,15 @@ export default function HomePage() {
                 type="button"
                 id="tab-dashboard"
                 role="tab"
-                aria-selected={activeTab === 'dashboard'}
+                aria-selected={activeTab === "dashboard"}
                 aria-controls="panel-dashboard"
-                onClick={() => setActiveTab('dashboard')}
-                onKeyDown={e => onTabKeyDown(e, 'dashboard')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${activeTab === 'dashboard'
-                  ? 'accent-chip shadow-sm'
-                  : 'text-secondary hover:text-primary'
-                  }`}
+                onClick={() => setActiveTab("dashboard")}
+                onKeyDown={(e) => onTabKeyDown(e, "dashboard")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+                  activeTab === "dashboard"
+                    ? "accent-chip shadow-sm"
+                    : "text-secondary hover:text-primary"
+                }`}
               >
                 대시보드
               </button>
@@ -577,14 +677,15 @@ export default function HomePage() {
                 type="button"
                 id="tab-settings"
                 role="tab"
-                aria-selected={activeTab === 'settings'}
+                aria-selected={activeTab === "settings"}
                 aria-controls="panel-settings"
-                onClick={() => setActiveTab('settings')}
-                onKeyDown={e => onTabKeyDown(e, 'settings')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${activeTab === 'settings'
-                  ? 'accent-chip shadow-sm'
-                  : 'text-secondary hover:text-primary'
-                  }`}
+                onClick={() => setActiveTab("settings")}
+                onKeyDown={(e) => onTabKeyDown(e, "settings")}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+                  activeTab === "settings"
+                    ? "accent-chip shadow-sm"
+                    : "text-secondary hover:text-primary"
+                }`}
               >
                 설정<span className="hidden sm:inline"> (기준정보)</span>
               </button>
@@ -596,14 +697,20 @@ export default function HomePage() {
               aria-label="테마 전환"
               title="라이트/다크 모드 전환"
             >
-              {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+              {theme === "dark" ? (
+                <Sun size={18} aria-hidden="true" />
+              ) : (
+                <Moon size={18} aria-hidden="true" />
+              )}
             </button>
             <button
               type="button"
-              onClick={() => router.push('/account')}
+              onClick={() => router.push("/account")}
               className="surface-card rounded-xl px-3 py-2 text-sm text-secondary hover:text-primary"
             >
-              <span className="hidden sm:inline">{session.data?.user?.email ?? '계정'}</span>
+              <span className="hidden sm:inline">
+                {session.data?.user?.email ?? "계정"}
+              </span>
               <span className="sm:hidden">계정</span>
             </button>
             <button
@@ -618,11 +725,16 @@ export default function HomePage() {
 
         <main id="main-content" tabIndex={-1}>
           {loading ? (
-            <div role="status" aria-live="polite" aria-atomic="true" className="flex justify-center items-center py-20">
+            <div
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="flex justify-center items-center py-20"
+            >
               <span className="sr-only">데이터를 불러오는 중…</span>
               <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
             </div>
-          ) : activeTab === 'dashboard' ? (
+          ) : activeTab === "dashboard" ? (
             <section
               id="panel-dashboard"
               role="tabpanel"
@@ -634,9 +746,9 @@ export default function HomePage() {
                   <CashflowSummary summary={dashboardData.cashflow} />
                 </>
               )}
-              {sectionOrder.map(sectionId => {
+              {sectionOrder.map((sectionId) => {
                 const section = dashboardSectionMap[sectionId];
-                const hideOnMobile = sectionId === 'monthly-trends';
+                const hideOnMobile = sectionId === "monthly-trends";
                 return (
                   <section
                     key={sectionId}
@@ -651,7 +763,7 @@ export default function HomePage() {
                       setDraggingSection(null);
                     }}
                     onDragEnd={() => setDraggingSection(null)}
-                    className={`surface-card rounded-2xl p-4 space-y-4 ${hideOnMobile ? 'hidden md:block' : ''} ${draggingSection === sectionId ? 'ring-2 ring-[color:var(--accent)]' : ''}`}
+                    className={`surface-card rounded-2xl p-4 space-y-4 ${hideOnMobile ? "hidden md:block" : ""} ${draggingSection === sectionId ? "ring-2 ring-[color:var(--accent)]" : ""}`}
                   >
                     <div className="mb-2 text-xs text-muted">
                       <span>{section.title}</span>
@@ -670,6 +782,8 @@ export default function HomePage() {
               <SettingsView
                 paymentMethods={paymentMethods}
                 onRefresh={handleRefreshSettings}
+                enableCarryOver={enableCarryOver}
+                onToggleCarryOver={handleToggleCarryOver}
               />
             </section>
           )}

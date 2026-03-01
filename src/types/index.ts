@@ -1,4 +1,4 @@
-export type PaymentMethodType = 'CREDIT' | 'CHECK' | 'ACCOUNT' | 'CASH';
+export type PaymentMethodType = "CREDIT" | "CHECK" | "ACCOUNT" | "CASH";
 
 /** DB row for payment_methods */
 export interface PaymentMethodRow {
@@ -81,6 +81,7 @@ export interface CashflowSummary {
   income: number;
   expense: number;
   balance: number;
+  carryOver: number;
 }
 
 export interface CardUsageTransaction {
@@ -103,6 +104,14 @@ export interface CardPerformance {
   usageTransactions: CardUsageTransaction[];
   tiers: (BenefitTier & { achieved: boolean })[];
   nextTierRemaining: number | null;
+  /** 결제일 전: 이전 실적기간 데이터 */
+  previousPerformance?: {
+    periodStart: string;
+    periodEnd: string;
+    amount: number;
+    transactions: CardUsageTransaction[];
+    tiers: (BenefitTier & { achieved: boolean })[];
+  };
 }
 
 export interface CreatePaymentMethodDTO {

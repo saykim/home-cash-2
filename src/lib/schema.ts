@@ -45,4 +45,9 @@ export async function initSchema(client: PoolClient): Promise<void> {
     ALTER TABLE payment_methods
     ADD COLUMN IF NOT EXISTS color TEXT DEFAULT NULL;
   `);
+
+  await client.query(`
+    ALTER TABLE user_dashboard_layouts
+    ADD COLUMN IF NOT EXISTS enable_carry_over INTEGER DEFAULT 1;
+  `);
 }

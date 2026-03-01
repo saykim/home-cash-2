@@ -1,17 +1,32 @@
-'use client';
+"use client";
 
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Plus, X } from 'lucide-react';
-import type { PaymentMethod, CreateTransactionDTO } from '@/types';
+import { useLayoutEffect, useRef, useState } from "react";
+import { Plus, X } from "lucide-react";
+import type { PaymentMethod, CreateTransactionDTO } from "@/types";
 
 interface Props {
   paymentMethods: PaymentMethod[];
   onSubmit: (dto: CreateTransactionDTO) => Promise<void>;
 }
 
-const CATEGORIES = ['생활', '고정', '외식', '교통', '통신', '쇼핑', '의료', '교육', '급여', '수입', '기타'];
-const sanitizeAmountInput = (value: string) => value.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '');
-const formatAmountDisplay = (value: string) => value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const CATEGORIES = [
+  "생활",
+  "고정",
+  "외식",
+  "교통",
+  "통신",
+  "쇼핑",
+  "의료",
+  "교육",
+  "급여",
+  "수입",
+  "카드대금",
+  "기타",
+];
+const sanitizeAmountInput = (value: string) =>
+  value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+const formatAmountDisplay = (value: string) =>
+  value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const getCaretFromDigitIndex = (formattedValue: string, digitIndex: number) => {
   if (digitIndex <= 0) {
     return 0;
@@ -39,11 +54,11 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     transactionDate: today,
-    amount: '',
+    amount: "",
     isExpense: true,
-    category: '생활',
-    memo: '',
-    paymentMethodId: paymentMethods[0]?.id ?? '',
+    category: "생활",
+    memo: "",
+    paymentMethodId: paymentMethods[0]?.id ?? "",
     excludeFromBilling: false,
     excludeFromPerformance: false,
   });
@@ -51,11 +66,11 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
   const resetForm = () => {
     setForm({
       transactionDate: today,
-      amount: '',
+      amount: "",
       isExpense: true,
-      category: '생활',
-      memo: '',
-      paymentMethodId: paymentMethods[0]?.id ?? '',
+      category: "생활",
+      memo: "",
+      paymentMethodId: paymentMethods[0]?.id ?? "",
       excludeFromBilling: false,
       excludeFromPerformance: false,
     });
@@ -85,15 +100,20 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
 
   const handleAmountChange = (value: string, selectionStart: number | null) => {
     const sanitized = sanitizeAmountInput(value);
-    setForm(f => ({ ...f, amount: sanitized }));
+    setForm((f) => ({ ...f, amount: sanitized }));
 
     if (selectionStart === null) {
       pendingCaretDigitIndexRef.current = null;
       return;
     }
 
-    const digitsBeforeCaret = sanitizeAmountInput(value.slice(0, selectionStart)).length;
-    pendingCaretDigitIndexRef.current = Math.min(digitsBeforeCaret, sanitized.length);
+    const digitsBeforeCaret = sanitizeAmountInput(
+      value.slice(0, selectionStart),
+    ).length;
+    pendingCaretDigitIndexRef.current = Math.min(
+      digitsBeforeCaret,
+      sanitized.length,
+    );
   };
 
   useLayoutEffect(() => {
@@ -104,7 +124,10 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
       return;
     }
 
-    const nextCaret = getCaretFromDigitIndex(formatAmountDisplay(form.amount), targetDigitIndex);
+    const nextCaret = getCaretFromDigitIndex(
+      formatAmountDisplay(form.amount),
+      targetDigitIndex,
+    );
     input.setSelectionRange(nextCaret, nextCaret);
     pendingCaretDigitIndexRef.current = null;
   }, [form.amount]);
@@ -139,14 +162,19 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
           </button>
         </div>
 
-        <div className="flex gap-2" role="radiogroup" aria-label="거래 유형 선택">
+        <div
+          className="flex gap-2"
+          role="radiogroup"
+          aria-label="거래 유형 선택"
+        >
           <button
             type="button"
             role="radio"
             aria-checked={form.isExpense}
-            onClick={() => setForm(f => ({ ...f, isExpense: true }))}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${form.isExpense ? 'danger-chip' : 'surface-soft text-secondary'
-              }`}
+            onClick={() => setForm((f) => ({ ...f, isExpense: true }))}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+              form.isExpense ? "danger-chip" : "surface-soft text-secondary"
+            }`}
           >
             지출
           </button>
@@ -154,9 +182,10 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
             type="button"
             role="radio"
             aria-checked={!form.isExpense}
-            onClick={() => setForm(f => ({ ...f, isExpense: false }))}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${!form.isExpense ? 'accent-chip' : 'surface-soft text-secondary'
-              }`}
+            onClick={() => setForm((f) => ({ ...f, isExpense: false }))}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+              !form.isExpense ? "accent-chip" : "surface-soft text-secondary"
+            }`}
           >
             수입
           </button>
@@ -164,7 +193,10 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-date">
+            <label
+              className="block text-xs font-semibold text-secondary mb-1"
+              htmlFor="transaction-date"
+            >
               날짜
             </label>
             <input
@@ -173,12 +205,17 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
               name="transactionDate"
               autoComplete="off"
               value={form.transactionDate}
-              onChange={e => setForm(f => ({ ...f, transactionDate: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, transactionDate: e.target.value }))
+              }
               className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-amount">
+            <label
+              className="block text-xs font-semibold text-secondary mb-1"
+              htmlFor="transaction-amount"
+            >
               금액
             </label>
             <input
@@ -189,7 +226,9 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
               autoComplete="off"
               inputMode="numeric"
               value={formatAmountDisplay(form.amount)}
-              onChange={e => handleAmountChange(e.target.value, e.target.selectionStart)}
+              onChange={(e) =>
+                handleAmountChange(e.target.value, e.target.selectionStart)
+              }
               placeholder="0…"
               className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
@@ -198,7 +237,10 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-category">
+            <label
+              className="block text-xs font-semibold text-secondary mb-1"
+              htmlFor="transaction-category"
+            >
               분류
             </label>
             <select
@@ -206,14 +248,23 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
               name="category"
               autoComplete="off"
               value={form.category}
-              onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, category: e.target.value }))
+              }
               className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-payment-method">
+            <label
+              className="block text-xs font-semibold text-secondary mb-1"
+              htmlFor="transaction-payment-method"
+            >
               결제 수단
             </label>
             <select
@@ -221,17 +272,26 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
               name="paymentMethodId"
               autoComplete="off"
               value={form.paymentMethodId}
-              onChange={e => setForm(f => ({ ...f, paymentMethodId: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, paymentMethodId: e.target.value }))
+              }
               className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
               <option value="">선택 안 함</option>
-              {paymentMethods.map(pm => <option key={pm.id} value={pm.id}>{pm.name}</option>)}
+              {paymentMethods.map((pm) => (
+                <option key={pm.id} value={pm.id}>
+                  {pm.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-secondary mb-1" htmlFor="transaction-memo">
+          <label
+            className="block text-xs font-semibold text-secondary mb-1"
+            htmlFor="transaction-memo"
+          >
             메모
           </label>
           <input
@@ -240,7 +300,7 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
             autoComplete="off"
             type="text"
             value={form.memo}
-            onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, memo: e.target.value }))}
             placeholder="예: 이마트 장보기…"
             className="w-full border rounded-lg p-2 text-sm bg-transparent text-primary focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           />
@@ -251,7 +311,9 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
             <input
               type="checkbox"
               checked={form.excludeFromBilling}
-              onChange={e => setForm(f => ({ ...f, excludeFromBilling: e.target.checked }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, excludeFromBilling: e.target.checked }))
+              }
               className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
             청구 제외
@@ -260,7 +322,12 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
             <input
               type="checkbox"
               checked={form.excludeFromPerformance}
-              onChange={e => setForm(f => ({ ...f, excludeFromPerformance: e.target.checked }))}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  excludeFromPerformance: e.target.checked,
+                }))
+              }
               className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
             실적 제외
@@ -273,7 +340,7 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
           disabled={submitting || !form.amount}
           className="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {submitting ? '저장 중…' : '저장'}
+          {submitting ? "저장 중…" : "저장"}
         </button>
       </form>
     </div>
