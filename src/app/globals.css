@@ -86,11 +86,15 @@
     color: var(--text-muted);
   }
 
+  /* ── Unified Surface Card System ── */
+  /* Base card: 모든 섹션/패널의 기본 컨테이너 */
   .surface-card {
     background: var(--surface);
     border: 1px solid var(--border);
+    border-radius: 1rem;
     box-shadow: var(--shadow-sm);
     backdrop-filter: blur(8px);
+    transition: box-shadow 200ms ease, transform 200ms ease;
   }
 
   @media (max-width: 767px) {
@@ -100,27 +104,34 @@
     }
   }
 
+  /* Strong variant: 모달, 폼, 강조가 필요한 컨테이너 */
   .surface-strong {
     background: var(--surface-strong);
     border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-md);
   }
 
+  /* Soft variant: 칩, 뱃지, 필터, 통계 등 보조 표면 */
   .surface-soft {
     background: var(--bg-soft);
     border: 1px solid var(--border);
+    border-radius: 0.75rem;
   }
 
+  /* Chip variants */
   .accent-chip {
     background: var(--accent-soft);
     color: var(--accent);
     border: 1px solid color-mix(in oklab, var(--accent) 22%, var(--border));
+    border-radius: 0.5rem;
   }
 
   .danger-chip {
     background: var(--danger-soft);
     color: var(--danger);
     border: 1px solid color-mix(in oklab, var(--danger) 24%, var(--border));
+    border-radius: 0.5rem;
   }
 
   .animate-fade-in {

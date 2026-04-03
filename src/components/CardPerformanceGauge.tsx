@@ -100,7 +100,7 @@ export default function CardPerformanceGauge({ cards }: Props) {
           return (
             <div
               key={card.paymentMethodId}
-              className={`surface-card rounded-xl p-4 flex flex-col gap-2.5 cursor-pointer transition-shadow ${
+              className={`surface-card p-4 flex flex-col gap-2.5 cursor-pointer transition-shadow ${
                 isExpanded ? "ring-2 ring-indigo-400" : "hover:shadow-md"
               }`}
               onClick={() => toggleCard(card.paymentMethodId)}
@@ -365,7 +365,7 @@ export default function CardPerformanceGauge({ cards }: Props) {
               : undefined;
 
           return (
-            <div className="surface-card rounded-xl p-4 animate-fade-in">
+            <div className="surface-card p-4 animate-fade-in">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <CreditCard size={15} className="text-indigo-500 shrink-0" />

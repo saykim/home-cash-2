@@ -79,7 +79,7 @@ export default function CashflowSummary({ summary }: Props) {
 
   return (
     <>
-      <section className="surface-card rounded-2xl p-6">
+      <section className="surface-card p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
             {summary.month} Cashflow
@@ -146,8 +146,7 @@ export default function CashflowSummary({ summary }: Props) {
           <button
             type="button"
             onClick={() => setShowGuide(true)}
-            className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold surface-soft text-secondary hover:text-primary hover:shadow-sm transition-all border"
-            style={{ borderColor: "var(--border)" }}
+            className="self-end sm:self-auto shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold surface-soft text-secondary hover:text-primary hover:shadow-sm transition-all"
             aria-label="기능 가이드 열기"
           >
             <BookOpen size={14} />
@@ -170,7 +169,6 @@ export default function CashflowSummary({ summary }: Props) {
             {/* 헤더 */}
             <div
               className="sticky top-0 surface-card flex items-center justify-between px-5 sm:px-6 py-5 border-b z-10"
-              style={{ borderColor: "var(--border)" }}
             >
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted mb-1">

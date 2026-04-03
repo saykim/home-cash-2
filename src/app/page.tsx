@@ -12,7 +12,7 @@ import { Moon, Sun, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import CashflowSummary from "@/components/CashflowSummary";
 import CardPerformanceGauge from "@/components/CardPerformanceGauge";
-import MonthlyCumulativeTrends from "@/components/MonthlyCumulativeTrends";
+import CategorySpendingBreakdown from "@/components/CategorySpendingBreakdown";
 import TransactionTable, {
   type TransactionFilters,
 } from "@/components/TransactionTable";
@@ -25,6 +25,7 @@ import type {
   PaymentMethod,
   BenefitTier,
   CreateTransactionDTO,
+  UpdateTransactionDTO,
 } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -48,18 +49,18 @@ interface DashboardData {
 
 type DashboardSectionId =
   | "card-performance"
-  | "monthly-trends"
+  | "category-spending"
   | "recent-transactions";
 
 const DEFAULT_DASHBOARD_SECTION_ORDER: DashboardSectionId[] = [
   "card-performance",
-  "monthly-trends",
+  "category-spending",
   "recent-transactions",
 ];
 
 const isDashboardSectionId = (value: string): value is DashboardSectionId =>
   value === "card-performance" ||
-  value === "monthly-trends" ||
+  value === "category-spending" ||
   value === "recent-transactions";
 
 const normalizeSectionOrder = (input: unknown): DashboardSectionId[] => {
@@ -86,6 +87,7 @@ const defaultTransactionFilters: TransactionFilters = {
   category: "all",
   paymentMethodId: "all",
   performance: "all",
+  summaryScope: "all",
 };
 
 export default function HomePage() {
@@ -186,10 +188,21 @@ export default function HomePage() {
         category: filters.category,
         paymentMethodId: filters.paymentMethodId,
         performance: filters.performance,
-        billingMode: graphMode === "billing" ? "true" : "false",
+        summaryScope: filters.summaryScope,
+        billingMode:
+          graphMode === "billing" ||
+          filters.summaryScope === "billingCurrent" ||
+          filters.summaryScope === "billingNext"
+            ? "true"
+            : "false",
       });
 
-      if (graphMode === "billing" && paymentMethods.length > 0) {
+      if (
+        (graphMode === "billing" ||
+          filters.summaryScope === "billingCurrent" ||
+          filters.summaryScope === "billingNext") &&
+        paymentMethods.length > 0
+      ) {
         txParams.set(
           "paymentMethodsJson",
           JSON.stringify(
@@ -198,6 +211,7 @@ export default function HomePage() {
               .map((pm) => ({
                 id: pm.id,
                 performanceStartDay: pm.performanceStartDay,
+                billingDay: pm.billingDay,
               })),
           ),
         );
@@ -480,6 +494,21 @@ export default function HomePage() {
     ]);
   };
 
+  const handleUpdateTransaction = async (
+    id: string,
+    dto: UpdateTransactionDTO,
+  ) => {
+    await fetch(`/api/transactions/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dto),
+    });
+    await Promise.all([
+      fetchDashboardData(),
+      fetchTransactions(transactionFilters, { showLoading: false }),
+    ]);
+  };
+
   const handleRefreshSettings = async () => {
     await Promise.all([
       fetchPaymentMethods(),
@@ -567,36 +596,38 @@ export default function HomePage() {
         <CardPerformanceGauge cards={dashboardData?.cardPerformances ?? []} />
       ),
     },
-    "monthly-trends": {
-      title: "월별 누적 변화 추이",
+    "category-spending": {
+      title: "카테고리별 지출 분석",
       node: (
-        <MonthlyCumulativeTrends
+        <CategorySpendingBreakdown
           transactions={transactions}
           month={currentMonth}
           paymentMethods={paymentMethods}
-          onMethodColorChange={handleMethodColorChange}
-          graphMode={graphMode}
-          onGraphModeChange={setGraphMode}
         />
       ),
     },
     "recent-transactions": {
       title: "최근 내역 요약",
-      node: (
-        <TransactionTable
-          transactions={transactions}
-          paymentMethods={paymentMethods}
-          filters={transactionFilters}
-          categories={categories}
-          currentMonth={currentMonth}
-          billingSummary={dashboardData?.billingSummary ?? null}
-          isLoading={transactionsLoading}
-          onChangeFilters={handleTransactionFiltersChange}
-          onDelete={handleDeleteTransaction}
-          onCreateTransaction={handleCreateTransaction}
-        />
-      ),
-    },
+          node: (
+            <TransactionTable
+              transactions={transactions}
+              paymentMethods={paymentMethods}
+              filters={transactionFilters}
+              categories={categories}
+              currentMonth={currentMonth}
+              billingSummary={dashboardData?.billingSummary ?? null}
+              monthlyTotals={{
+                income: dashboardData?.cashflow.income ?? 0,
+                expense: dashboardData?.cashflow.expense ?? 0,
+              }}
+              isLoading={transactionsLoading}
+              onChangeFilters={handleTransactionFiltersChange}
+              onDelete={handleDeleteTransaction}
+              onCreateTransaction={handleCreateTransaction}
+              onUpdateTransaction={handleUpdateTransaction}
+            />
+          ),
+        },
   };
 
   return (
@@ -619,7 +650,7 @@ export default function HomePage() {
           <div className="flex flex-wrap items-center gap-2">
             {/* 월 네비게이션 */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 surface-card rounded-xl px-1 py-1">
+              <div className="flex items-center gap-1 surface-card px-1 py-1">
                 <button
                   type="button"
                   onClick={() => moveMonth(-1)}
@@ -693,7 +724,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={toggleTheme}
-              className="surface-card rounded-xl p-2.5 text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+              className="surface-card p-2.5 text-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
               aria-label="테마 전환"
               title="라이트/다크 모드 전환"
             >
@@ -706,7 +737,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => router.push("/account")}
-              className="surface-card rounded-xl px-3 py-2 text-sm text-secondary hover:text-primary"
+              className="surface-card px-3 py-2 text-sm text-secondary hover:text-primary"
             >
               <span className="hidden sm:inline">
                 {session.data?.user?.email ?? "계정"}
@@ -716,7 +747,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="surface-card rounded-xl px-3 py-2 text-sm text-secondary hover:text-primary"
+              className="surface-card px-3 py-2 text-sm text-secondary hover:text-primary"
             >
               로그아웃
             </button>
@@ -748,7 +779,7 @@ export default function HomePage() {
               )}
               {sectionOrder.map((sectionId) => {
                 const section = dashboardSectionMap[sectionId];
-                const hideOnMobile = sectionId === "monthly-trends";
+                const hideOnMobile = sectionId === "category-spending";
                 return (
                   <section
                     key={sectionId}
@@ -763,7 +794,7 @@ export default function HomePage() {
                       setDraggingSection(null);
                     }}
                     onDragEnd={() => setDraggingSection(null)}
-                    className={`surface-card rounded-2xl p-4 space-y-4 ${hideOnMobile ? "hidden md:block" : ""} ${draggingSection === sectionId ? "ring-2 ring-[color:var(--accent)]" : ""}`}
+                    className={`surface-card p-4 space-y-4 ${hideOnMobile ? "hidden md:block" : ""} ${draggingSection === sectionId ? "ring-2 ring-[color:var(--accent)]" : ""}`}
                   >
                     <div className="mb-2 text-xs text-muted">
                       <span>{section.title}</span>

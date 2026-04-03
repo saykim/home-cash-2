@@ -9,6 +9,24 @@ interface Props {
   onSubmit: (dto: CreateTransactionDTO) => Promise<void>;
 }
 
+interface Preset {
+  label: string;
+  icon: string;
+  category: string;
+  memo: string;
+}
+
+const EXPENSE_PRESETS: Preset[] = [
+  { label: '장보기', icon: '🛒', category: '생활', memo: '장보기/생필품' },
+  { label: '외식', icon: '🍽️', category: '외식', memo: '외식' },
+  { label: '교통', icon: '🚗', category: '교통', memo: '교통비' },
+  { label: '카페', icon: '☕', category: '외식', memo: '카페/간식' },
+  { label: '공과금', icon: '💡', category: '고정', memo: '공과금/관리비' },
+  { label: '통신', icon: '📱', category: '통신', memo: '통신비' },
+  { label: '약국', icon: '💊', category: '의료', memo: '병원/약국' },
+  { label: '카드값', icon: '💳', category: '카드대금', memo: '카드대금 납부' },
+];
+
 const CATEGORIES = [
   "생활",
   "고정",
@@ -190,6 +208,29 @@ export default function TransactionForm({ paymentMethods, onSubmit }: Props) {
             수입
           </button>
         </div>
+
+        {form.isExpense && (
+          <div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {EXPENSE_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({
+                      ...f,
+                      category: preset.category,
+                      memo: preset.memo,
+                    }));
+                  }}
+                  className="surface-soft text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap hover:shadow-sm transition-all"
+                >
+                  {preset.icon} {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>

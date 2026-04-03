@@ -6,20 +6,38 @@ import type { TransactionRow } from "@/types";
 import { v4 as uuid } from "uuid";
 
 /** 거래일이 어느 청구월(YYYY-MM)에 속하는지 계산 */
-function calcBillingMonthKey(transactionDate: string, startDay: number): string {
-  const txDay = parseInt(transactionDate.slice(8, 10), 10);
-  const txYearMonth = transactionDate.slice(0, 7); // YYYY-MM
+function calcBillingMonthKey(
+  transactionDate: string,
+  startDay: number,
+  billingDay: number,
+): string {
+  const [txYear, txMonth, txDay] = transactionDate.split('-').map(Number);
 
-  if (startDay <= 1) return txYearMonth;
+  let windowEndYear = txYear;
+  let windowEndMonth = txMonth;
+  let windowEndDay: number;
 
-  // startDay=15인 경우: 거래일 >= 15 → 다음 달 청구, 거래일 < 15 → 이번 달 청구
-  if (txDay >= startDay) {
-    const [y, m] = txYearMonth.split('-').map(Number);
-    const nextM = m === 12 ? 1 : m + 1;
-    const nextY = m === 12 ? y + 1 : y;
-    return `${nextY}-${String(nextM).padStart(2, '0')}`;
+  if (startDay <= 1) {
+    windowEndDay = new Date(txYear, txMonth, 0).getDate();
+  } else {
+    if (txDay >= startDay) {
+      const nextMonthDate = new Date(txYear, txMonth, 1);
+      windowEndYear = nextMonthDate.getFullYear();
+      windowEndMonth = nextMonthDate.getMonth() + 1;
+    }
+    const daysInWindowEndMonth = new Date(windowEndYear, windowEndMonth, 0).getDate();
+    windowEndDay = Math.min(startDay - 1, daysInWindowEndMonth);
   }
-  return txYearMonth;
+
+  let billingYear = windowEndYear;
+  let billingMonth = windowEndMonth;
+  if (windowEndDay >= billingDay) {
+    const nextBillingMonthDate = new Date(windowEndYear, windowEndMonth, 1);
+    billingYear = nextBillingMonthDate.getFullYear();
+    billingMonth = nextBillingMonthDate.getMonth() + 1;
+  }
+
+  return `${billingYear}-${String(billingMonth).padStart(2, '0')}`;
 }
 
 /** 전월의 특정 일자를 YYYY-MM-DD 형식으로 반환 */
@@ -46,17 +64,24 @@ export async function GET(request: Request) {
   const paymentMethodId = searchParams.get("paymentMethodId");
   const performance = searchParams.get("performance") ?? "all";
   const billingMode = searchParams.get("billingMode") === "true";
+  const summaryScope = searchParams.get("summaryScope") ?? "all";
   const paymentMethodsJson = searchParams.get("paymentMethodsJson");
 
   // billingMode 시 신용카드 정보 파싱
-  type CreditMethodInfo = { id: string; performanceStartDay: number };
+  type CreditMethodInfo = {
+    id: string;
+    performanceStartDay: number;
+    billingDay: number | null;
+  };
   let creditMethods: CreditMethodInfo[] = [];
   if (billingMode && paymentMethodsJson) {
     try {
       const parsed = JSON.parse(paymentMethodsJson) as unknown;
       if (Array.isArray(parsed)) {
         creditMethods = (parsed as CreditMethodInfo[]).filter(
-          (item) => typeof item.id === 'string' && typeof item.performanceStartDay === 'number'
+            (item) =>
+              typeof item.id === 'string' &&
+              typeof item.performanceStartDay === 'number'
         );
       }
     } catch {
@@ -78,8 +103,9 @@ export async function GET(request: Request) {
         const minStartDay = Math.min(...creditMethods.map((pm) => pm.performanceStartDay));
         const dateStart = getPrevMonthDateKey(month, minStartDay);
         const [y, m] = month.split('-').map(Number);
-        const lastDay = new Date(y, m, 0).getDate(); // 당월 말일
-        const dateEnd = `${month}-${String(lastDay).padStart(2, '0')}`;
+        const targetMonthOffset = summaryScope === 'billingNext' ? 1 : 0;
+        const endDate = new Date(y, m - 1 + targetMonthOffset + 1, 0);
+        const dateEnd = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
         where.push(`t.transaction_date >= $${paramIndex++}`);
         params.push(dateStart);
         where.push(`t.transaction_date <= $${paramIndex++}`);
@@ -134,13 +160,52 @@ export async function GET(request: Request) {
     const mappedRows = rows.map((row) => {
       if (!billingMode) return toTransaction(row);
       const pm = creditMethods.find((m) => m.id === row.payment_method_id);
-      const billingMonthKey = pm
-        ? calcBillingMonthKey(row.transaction_date, pm.performanceStartDay)
-        : row.transaction_date.slice(0, 7);
+      if (!pm || typeof pm.billingDay !== 'number') {
+        return toTransaction(row);
+      }
+      const billingMonthKey = calcBillingMonthKey(
+        row.transaction_date,
+        pm.performanceStartDay,
+        pm.billingDay,
+      );
       return toTransaction({ ...row, billing_month_key: billingMonthKey });
     });
 
-    return NextResponse.json(mappedRows);
+    const resolvedMonth = month ?? '';
+    const [currentYear, currentMonthNum] = resolvedMonth.split('-').map(Number);
+    const nextMonthDate = new Date(currentYear, currentMonthNum, 1);
+    const nextMonthKey = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
+    const creditMethodIds = new Set(creditMethods.map((m) => m.id));
+
+    const filteredRows = mappedRows.filter((row) => {
+      if (summaryScope === 'income') {
+        return row.amount > 0;
+      }
+      if (summaryScope === 'expense') {
+        return row.amount < 0;
+      }
+      if (summaryScope === 'billingCurrent') {
+        return (
+          row.amount < 0 &&
+          !row.excludeFromBilling &&
+          !!row.paymentMethodId &&
+          creditMethodIds.has(row.paymentMethodId) &&
+          row.billingMonthKey === resolvedMonth
+        );
+      }
+      if (summaryScope === 'billingNext') {
+        return (
+          row.amount < 0 &&
+          !row.excludeFromBilling &&
+          !!row.paymentMethodId &&
+          creditMethodIds.has(row.paymentMethodId) &&
+          row.billingMonthKey === nextMonthKey
+        );
+      }
+      return true;
+    });
+
+    return NextResponse.json(filteredRows);
   } finally {
     client.release();
   }

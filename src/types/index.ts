@@ -147,3 +147,15 @@ export interface CreateTransactionDTO {
   excludeFromBilling?: boolean;
   excludeFromPerformance?: boolean;
 }
+
+export interface UpdateTransactionDTO {
+  paymentMethodId?: string | null;
+  transactionDate?: string;
+  amount?: number;
+  category?: string | null;
+  memo?: string | null;
+  isInstallment?: boolean;
+  installmentMonths?: number;
+  excludeFromBilling?: boolean;
+  excludeFromPerformance?: boolean;
+}

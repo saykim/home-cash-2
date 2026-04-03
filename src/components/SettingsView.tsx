@@ -264,7 +264,7 @@ export default function SettingsView({
   return (
     <div className="space-y-5 animate-fade-in">
       {/* ── 일반 설정 ── */}
-      <div className="surface-card rounded-xl p-4">
+      <div className="surface-card p-4">
         <h2 className="text-sm font-bold text-primary mb-3">일반 설정</h2>
         <div className="flex items-center justify-between">
           <div>
@@ -300,7 +300,7 @@ export default function SettingsView({
       <div className="flex flex-col md:flex-row gap-5">
         {/* ── 좌: 결제 수단 목록 ── */}
         <div className="w-full md:w-72 shrink-0 space-y-3">
-          <div className="surface-card rounded-xl overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div
               className="flex justify-between items-center px-4 py-3 border-b"
               style={{ borderColor: "var(--border)" }}
@@ -383,7 +383,7 @@ export default function SettingsView({
               }}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-muted surface-card rounded-xl p-10 min-h-[300px]">
+            <div className="h-full flex flex-col items-center justify-center text-muted surface-card p-10 min-h-[300px]">
               <Settings
                 size={40}
                 aria-hidden="true"
