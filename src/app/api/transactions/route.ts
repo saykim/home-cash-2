@@ -29,9 +29,11 @@ function calcBillingMonthKey(
     windowEndDay = Math.min(startDay - 1, daysInWindowEndMonth);
   }
 
+  const daysInWinEndMonth = new Date(windowEndYear, windowEndMonth, 0).getDate();
+  const clampedBillingDay = Math.min(billingDay, daysInWinEndMonth);
   let billingYear = windowEndYear;
   let billingMonth = windowEndMonth;
-  if (windowEndDay >= billingDay) {
+  if (windowEndDay >= clampedBillingDay) {
     const nextBillingMonthDate = new Date(windowEndYear, windowEndMonth, 1);
     billingYear = nextBillingMonthDate.getFullYear();
     billingMonth = nextBillingMonthDate.getMonth() + 1;
@@ -40,12 +42,15 @@ function calcBillingMonthKey(
   return `${billingYear}-${String(billingMonth).padStart(2, '0')}`;
 }
 
-/** 전월의 특정 일자를 YYYY-MM-DD 형식으로 반환 */
-function getPrevMonthDateKey(month: string, day: number): string {
+/** 특정 월에서 offset개월 전의 특정 일자를 YYYY-MM-DD 형식으로 반환 (일수 클램핑 포함) */
+function getOffsetMonthDateKey(month: string, day: number, offset: number): string {
   const [y, m] = month.split('-').map(Number);
-  const prevM = m === 1 ? 12 : m - 1;
-  const prevY = m === 1 ? y - 1 : y;
-  return `${prevY}-${String(prevM).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const d = new Date(y, m - 1 - offset, 1);
+  const targetYear = d.getFullYear();
+  const targetMonth = d.getMonth() + 1;
+  const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+  const clampedDay = Math.min(day, daysInMonth);
+  return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
 }
 
 export const dynamic = "force-dynamic";
@@ -98,13 +103,25 @@ export async function GET(request: Request) {
     let paramIndex = 1;
 
     if (month) {
-      if (billingMode && creditMethods.some((pm) => pm.performanceStartDay > 1)) {
-        // 청구 기준: 전월 startDay일부터 당월 말일까지 범위 확장
-        const minStartDay = Math.min(...creditMethods.map((pm) => pm.performanceStartDay));
-        const dateStart = getPrevMonthDateKey(month, minStartDay);
+      const isBillingScope = summaryScope === 'billingCurrent' || summaryScope === 'billingNext';
+
+      if (isBillingScope) {
+        // 결제 기준 필터: 대시보드와 동일하게 2개월 전부터 조회해야
+        // billingCurrent/billingNext에 해당하는 거래를 빠짐없이 포함
         const [y, m] = month.split('-').map(Number);
+        const dateStart = getOffsetMonthDateKey(month, 1, 2);
         const targetMonthOffset = summaryScope === 'billingNext' ? 1 : 0;
         const endDate = new Date(y, m - 1 + targetMonthOffset + 1, 0);
+        const dateEnd = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+        where.push(`t.transaction_date >= $${paramIndex++}`);
+        params.push(dateStart);
+        where.push(`t.transaction_date <= $${paramIndex++}`);
+        params.push(dateEnd);
+      } else if (billingMode && creditMethods.some((pm) => pm.performanceStartDay > 1)) {
+        const minStartDay = Math.min(...creditMethods.map((pm) => pm.performanceStartDay));
+        const dateStart = getOffsetMonthDateKey(month, minStartDay, 1);
+        const [y, m] = month.split('-').map(Number);
+        const endDate = new Date(y, m, 0);
         const dateEnd = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
         where.push(`t.transaction_date >= $${paramIndex++}`);
         params.push(dateStart);

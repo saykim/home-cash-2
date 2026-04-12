@@ -39,18 +39,19 @@ const getExpectedBillingDate = (
     .split("-")
     .map(Number);
 
+  const daysInEndMonth = new Date(endYear, endMonth, 0).getDate();
+  const clampedBillingDay = Math.min(billingDay, daysInEndMonth);
+
   let billingYear = endYear;
   let billingMonth = endMonth;
 
-  if (endDay >= billingDay) {
-    // 기간 종료일이 결제일 이후면 → 다음 달 결제
+  if (endDay >= clampedBillingDay) {
     billingMonth += 1;
     if (billingMonth > 12) {
       billingMonth = 1;
       billingYear += 1;
     }
   }
-  // 결제일을 해당 월의 말일로 clamp
   const daysInBillingMonth = new Date(billingYear, billingMonth, 0).getDate();
   const safeDay = Math.min(billingDay, daysInBillingMonth);
   return `${billingMonth}/${safeDay}`;

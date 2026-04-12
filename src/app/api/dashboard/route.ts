@@ -130,9 +130,11 @@ const getBillingMonthKey = (
   billingDay: number,
 ): string => {
   const [endYear, endMonth, endDay] = perfWindowEnd.split("-").map(Number);
+  const daysInEndMonth = getDaysInMonth(endYear, endMonth);
+  const clampedBillingDay = Math.min(billingDay, daysInEndMonth);
   let billingYear = endYear;
   let billingMonth = endMonth;
-  if (endDay >= billingDay) {
+  if (endDay >= clampedBillingDay) {
     billingMonth += 1;
     if (billingMonth > 12) {
       billingMonth = 1;

@@ -143,21 +143,48 @@ export default function TransactionTable({
   const totalAmount = transactions.reduce((sum, tx) => sum + tx.amount, 0);
   const exportFileName = `transactions-${currentMonth}-export.csv`;
 
-  /* 결제일 레이블 (개별 row M/D 표시용) */
+  /* 결제일 레이블 (개별 row M/D 표시용) — 서버 getBillingMonthKey 로직과 동일 */
   const getBillingLabel = (tx: Transaction): string | null => {
     if (!tx.paymentMethodId) return null;
     const pm = paymentMethods.find(p => p.id === tx.paymentMethodId);
     if (!pm || pm.type !== 'CREDIT' || !pm.billingDay) return null;
+
     const [yStr, mStr, dStr] = tx.transactionDate.split('-');
+    const txYear = Number(yStr);
+    const txMonth = Number(mStr);
     const txDay = Number(dStr);
-    let bYear = Number(yStr);
-    let bMonth = Number(mStr);
-    if (txDay >= pm.billingDay) {
+    const startDay = pm.performanceStartDay || 1;
+
+    let winEndYear: number;
+    let winEndMonth: number;
+    let winEndDay: number;
+
+    if (startDay === 1) {
+      winEndYear = txYear;
+      winEndMonth = txMonth;
+      winEndDay = new Date(txYear, txMonth, 0).getDate();
+    } else if (txDay >= startDay) {
+      winEndMonth = txMonth + 1;
+      winEndYear = txYear;
+      if (winEndMonth > 12) { winEndMonth = 1; winEndYear += 1; }
+      winEndDay = Math.min(startDay - 1, new Date(winEndYear, winEndMonth, 0).getDate());
+    } else {
+      winEndYear = txYear;
+      winEndMonth = txMonth;
+      winEndDay = Math.min(startDay - 1, new Date(txYear, txMonth, 0).getDate());
+    }
+
+    const daysInWinEndMonth = new Date(winEndYear, winEndMonth, 0).getDate();
+    const clampedBillingDay = Math.min(pm.billingDay, daysInWinEndMonth);
+    let bYear = winEndYear;
+    let bMonth = winEndMonth;
+    if (winEndDay >= clampedBillingDay) {
       bMonth += 1;
       if (bMonth > 12) { bMonth = 1; bYear += 1; }
     }
-    const daysInMonth = new Date(bYear, bMonth, 0).getDate();
-    const safeDay = Math.min(pm.billingDay, daysInMonth);
+
+    const daysInBillingMonth = new Date(bYear, bMonth, 0).getDate();
+    const safeDay = Math.min(pm.billingDay, daysInBillingMonth);
     return `결제 ${bMonth}/${safeDay}`;
   };
 
