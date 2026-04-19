@@ -28,6 +28,12 @@ const defaultPalette = ['#4f46e5', '#0284c7', '#16a34a', '#d97706', '#dc2626', '
 
 const moneyFormatter = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 0 });
 
+const getPreviousMonthCardLabel = (month: string) => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const previousMonthDate = new Date(year, monthNumber - 2, 1);
+  return `${previousMonthDate.getMonth() + 1}월 카드 대금`;
+};
+
 export default function CategorySpendingBreakdown({ transactions, month }: Props) {
   const { categories, totalExpense, totalIncome, paymentMethodBreakdown } = useMemo(() => {
     const expenseMap = new Map<string, { total: number; count: number }>();
@@ -66,6 +72,7 @@ export default function CategorySpendingBreakdown({ transactions, month }: Props
 
   const [yearStr, monthStr] = month.split("-");
   const displayLabel = `${yearStr}년 ${Number(monthStr)}월`;
+  const cardPaymentLabel = getPreviousMonthCardLabel(month);
 
   if (categories.length === 0 && totalIncome === 0) {
     return (
@@ -102,12 +109,14 @@ export default function CategorySpendingBreakdown({ transactions, month }: Props
               {categories.map((cat, idx) => {
                 const pct = totalExpense > 0 ? (cat.total / totalExpense) * 100 : 0;
                 const color = categoryColors[cat.label] ?? defaultPalette[idx % defaultPalette.length];
+                const categoryLabel =
+                  cat.label === "카드대금" ? cardPaymentLabel : cat.label;
                 return (
                   <div key={cat.label} className="surface-soft p-3">
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                        <span className="text-sm font-medium text-primary truncate">{cat.label}</span>
+                        <span className="text-sm font-medium text-primary truncate">{categoryLabel}</span>
                         <span className="text-[10px] text-muted shrink-0">{cat.count}건</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
