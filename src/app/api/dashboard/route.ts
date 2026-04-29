@@ -282,9 +282,25 @@ export async function GET(request: Request) {
 
     const cardPerformances: CardPerformance[] = methodRows.map((methodRow) => {
       const startDay = clampDay(methodRow.performance_start_day);
+      const billingDay = methodRow.billing_day
+        ? clampDay(methodRow.billing_day)
+        : null;
+      const shouldUseNextPerformanceWindow =
+        isCurrentMonth &&
+        methodRow.type === "CREDIT" &&
+        startDay > DEFAULT_PERFORMANCE_START_DAY &&
+        billingDay !== null &&
+        todayDay >= billingDay;
+      const performanceBaseMonth = shouldUseNextPerformanceWindow
+        ? next
+        : { year, month: monthNumber };
       const performanceWindow =
         methodRow.type === "CREDIT"
-          ? getPerformanceWindow(year, monthNumber, startDay)
+          ? getPerformanceWindow(
+              performanceBaseMonth.year,
+              performanceBaseMonth.month,
+              startDay,
+            )
           : {
               start: monthRange.start,
               end: monthRange.end,
@@ -338,8 +354,8 @@ export async function GET(request: Request) {
       if (
         isCurrentMonth &&
         methodRow.type === "CREDIT" &&
-        methodRow.billing_day &&
-        todayDay < methodRow.billing_day
+        billingDay !== null &&
+        todayDay < billingDay
       ) {
         const prevWindow = getPerformanceWindow(
           previousMonth.year,
