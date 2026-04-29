@@ -1,0 +1,9 @@
+{
+  "name": "우리집 가계부",
+  "short_name": "가계부",
+  "description": "입력은 뭉뚱그려서, 계산은 정교하게",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f6fb",
+  "theme_color": "#f3f6fb"
+}
